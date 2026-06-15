@@ -592,7 +592,7 @@ async function submitScore() {
   const name=(document.getElementById('player-name').value.trim()||'匿名').slice(0,12);
   localStorage.setItem('tetris_name',name);
   document.getElementById('name-modal').style.display='none';
-  const {error}=await sb.from('leaderboard').insert({name,score,level,lines});
+  const {error}=await sb.rpc('upsert_score',{p_name:name,p_score:score,p_level:level,p_lines:lines});
   if(!error) localStorage.removeItem(LB_CACHE_KEY);
   showLeaderboard();
 }
