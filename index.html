@@ -20,6 +20,10 @@ body::before{
     radial-gradient(ellipse 50% 60% at 80% 30%, rgba(20,100,180,0.15) 0%, transparent 60%);
   pointer-events:none;z-index:0;
 }
+#bg-fx{
+  position:fixed;inset:0;width:100vw;height:100dvh;
+  pointer-events:none;z-index:0;
+}
 
 #top-bar{
   position:relative;z-index:1;
@@ -186,6 +190,8 @@ body::before{
 </style>
 </head>
 <body>
+
+<canvas id="bg-fx"></canvas>
 
 <div id="save-badge">✓ 已存檔</div>
 <button id="sound-btn" onclick="toggleSound()" title="音效開關">🔊</button>
@@ -400,6 +406,59 @@ function updateParticles() {
   particles.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.vy+=(p.g!=null?p.g:.18); p.life-=p.decay; });
 }
 
+/* ===== BACKGROUND FX LAYER — effects in the empty side gutters ===== */
+const bgCanvas=document.getElementById('bg-fx'), bgCtx=bgCanvas.getContext('2d');
+let bgParticles=[], bgFrame=0;
+function sizeBg(){ bgCanvas.width=window.innerWidth; bgCanvas.height=window.innerHeight; }
+sizeBg(); window.addEventListener('resize',sizeBg);
+/* the two empty regions flanking the centered play area (viewport coords) */
+function gutters(){
+  const ga=document.getElementById('game-area').getBoundingClientRect();
+  const W=bgCanvas.width, pad=6;
+  const out=[];
+  if(ga.left-pad > 28) out.push({x0:pad, x1:ga.left-pad});
+  if(W-pad-(ga.right+pad) > 28) out.push({x0:ga.right+pad, x1:W-pad});
+  return out;
+}
+const inG=g=>g.x0+Math.random()*(g.x1-g.x0);
+function bgFirework(cx,cy,colors){
+  const n=22+Math.floor(Math.random()*14);
+  for(let i=0;i<n;i++){
+    const ang=(Math.PI*2*i)/n + Math.random()*0.3;
+    const spd=2+Math.random()*4.5;
+    bgParticles.push({x:cx,y:cy,vx:Math.cos(ang)*spd,vy:Math.sin(ang)*spd,
+      r:Math.random()*2.6+1.8,color:colors[i%colors.length],
+      life:1,decay:Math.random()*0.012+0.008,g:0.05,glow:true});
+  }
+}
+/* gentle sparkle drifting up through a gutter — ambient decoration */
+const AMBIENT_COLORS=['#9a6bff','#4d7fd0','#00C9FF','#C77DFF','#6BCB77'];
+function bgAmbient(){
+  const gs=gutters(); if(!gs.length) return;
+  const g=gs[Math.floor(Math.random()*gs.length)];
+  bgParticles.push({x:inG(g), y:bgCanvas.height+6,
+    vx:(Math.random()-.5)*0.4, vy:-(0.35+Math.random()*0.7),
+    r:Math.random()*1.6+0.7, color:AMBIENT_COLORS[Math.floor(Math.random()*AMBIENT_COLORS.length)],
+    life:1, decay:0.0035+Math.random()*0.003, g:0, glow:true, tw:Math.random()*6.28});
+}
+function bgLoop(){
+  bgCtx.clearRect(0,0,bgCanvas.width,bgCanvas.height);
+  if(!document.hidden && (bgFrame++ % 9===0)) bgAmbient();
+  bgParticles=bgParticles.filter(p=>p.life>0 && p.y>-30);
+  bgParticles.forEach(p=>{
+    p.x+=p.vx; p.y+=p.vy; p.vy+=(p.g||0); p.life-=p.decay;
+    let a=Math.max(0,Math.min(1,p.life));
+    if(p.tw!=null){ p.tw+=0.14; a*=0.45+0.55*Math.abs(Math.sin(p.tw)); }
+    bgCtx.globalAlpha=a; bgCtx.fillStyle=p.color;
+    if(p.glow){ bgCtx.shadowColor=p.color; bgCtx.shadowBlur=p.r*3; }
+    bgCtx.beginPath(); bgCtx.arc(p.x,p.y,p.r,0,Math.PI*2); bgCtx.fill();
+    if(p.glow) bgCtx.shadowBlur=0;
+  });
+  bgCtx.globalAlpha=1;
+  requestAnimationFrame(bgLoop);
+}
+bgLoop();
+
 /* ===== MILESTONE CELEBRATIONS (every 1000 pts) ===== */
 let lastMilestone=0;
 const FW_PALETTES=[
@@ -407,32 +466,19 @@ const FW_PALETTES=[
   ['#00C9FF','#4D96FF','#C77DFF','#FF61D8'],        // 2000: cool rainbow
   ['#6BCB77','#00FFD4','#FFD93D','#FF61D8','#FF6B6B'], // 3000: full spectrum
 ];
-/* one firework burst: ring of glowing sparks that drift down */
-function spawnFirework(cx,cy,colors){
-  const n=18+Math.floor(Math.random()*10);
-  for(let i=0;i<n;i++){
-    const ang=(Math.PI*2*i)/n + Math.random()*0.3;
-    const spd=1.5+Math.random()*3.2;
-    particles.push({
-      x:cx, y:cy,
-      vx:Math.cos(ang)*spd, vy:Math.sin(ang)*spd,
-      r:Math.random()*2.2+1.6, color:colors[i%colors.length],
-      life:1, decay:Math.random()*0.018+0.012, g:0.06, glow:true
-    });
-  }
-}
-/* fire several bursts over time, intensity grows with milestone */
+/* fire bursts across BOTH side gutters; intensity grows with milestone */
 function celebrate(m){
   const tier=Math.min(m,FW_PALETTES.length)-1;
   const colors=FW_PALETTES[tier<0?0:tier];
-  const bursts=Math.min(2+m,8);            // more bursts the higher you go
+  const bursts=Math.min(3+m,12);           // more bursts the higher you go
   for(let b=0;b<bursts;b++){
     setTimeout(()=>{
-      if(!gameRunning) return;
-      const cx=canvas.width*(0.15+Math.random()*0.7);
-      const cy=canvas.height*(0.12+Math.random()*0.45);
-      spawnFirework(cx,cy,colors);
-    }, b*220);
+      const gs=gutters(); if(!gs.length) return;
+      const g=gs[b%gs.length];             // alternate left / right
+      const cx=inG(g);
+      const cy=bgCanvas.height*(0.15+Math.random()*0.5);
+      bgFirework(cx,cy,colors);
+    }, b*180);
   }
   flashScreen();
   showMilestoneBanner(m);
