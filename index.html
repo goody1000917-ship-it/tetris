@@ -43,6 +43,14 @@ body::before{
 }
 #save-badge.show{opacity:1;}
 
+#sound-btn{
+  position:fixed;top:8px;left:10px;z-index:50;
+  background:rgba(255,255,255,0.06);border:.5px solid rgba(255,255,255,0.15);
+  color:#fff;font-size:16px;width:30px;height:30px;border-radius:8px;
+  cursor:pointer;line-height:1;padding:0;
+}
+#sound-btn:active{background:rgba(255,255,255,0.15);}
+
 #game-area{position:relative;z-index:1;display:flex;gap:8px;align-items:flex-start;padding:0 8px;}
 #canvas-wrap{
   border:1px solid rgba(255,255,255,0.15);border-radius:8px;overflow:hidden;flex-shrink:0;
@@ -158,6 +166,7 @@ body::before{
 <body>
 
 <div id="save-badge">✓ 已存檔</div>
+<button id="sound-btn" onclick="toggleSound()" title="音效開關">🔊</button>
 
 <div id="top-bar">
   <div class="stat"><div class="stat-label">分數</div><div class="stat-value" id="score">0</div></div>
@@ -452,7 +461,7 @@ function updateStats() {
 function spawnPiece() {
   currentPiece = nextPiece || randPiece();
   nextPiece = randPiece(); drawNext();
-  if(currentPiece.label) showSpecialToast(currentPiece.label);
+  if(currentPiece.label){ showSpecialToast(currentPiece.label); playSpecial(); }
   if(collide(board,currentPiece)) endGame();
 }
 
@@ -465,7 +474,7 @@ function showSpecialToast(msg) {
 }
 
 function endGame() {
-  gameRunning=false; cancelAnimationFrame(animId); clearSave();
+  gameRunning=false; cancelAnimationFrame(animId); clearSave(); playGameOver();
   document.getElementById('final-score').textContent=score.toLocaleString();
   document.getElementById('final-sub').textContent=`等級 ${level} · 消除 ${lines} 行`;
   document.getElementById('player-name').value=localStorage.getItem('tetris_name')||'';
@@ -482,13 +491,14 @@ function drop() {
       const pts=[0,100,300,500,800];
       score+=(pts[c]||800)*level; lines+=c; level=Math.floor(lines/10)+1;
       dropInterval=Math.max(80,800-(level-1)*70); updateStats();
-    }
+      playClear(c);
+    } else { playLock(); }
     spawnPiece();
     if(++dropsSinceLastSave>=1){ saveState(); dropsSinceLastSave=0; }
   }
 }
-function hardDrop(){ while(!collide(board,currentPiece,0,1)) currentPiece.y++; drop(); }
-function move(dir){ if(!collide(board,currentPiece,dir,0)) currentPiece.x+=dir; }
+function hardDrop(){ playDrop(); while(!collide(board,currentPiece,0,1)) currentPiece.y++; drop(); }
+function move(dir){ if(!collide(board,currentPiece,dir,0)){ currentPiece.x+=dir; playMove(); } }
 
 function tryRotate(ccw=false) {
   const fromState = currentPiece.rotState;
@@ -504,7 +514,7 @@ function tryRotate(ccw=false) {
   for(const [dx,dy] of kicks) {
     if(!collide(board,currentPiece,dx,dy,newShape)){
       currentPiece.shape=newShape; currentPiece.x+=dx; currentPiece.y+=dy;
-      currentPiece.rotState=toState; return;
+      currentPiece.rotState=toState; playRotate(); return;
     }
   }
 }
@@ -514,6 +524,60 @@ function update(time=0) {
   const dt=time-lastTime; lastTime=time; dropCounter+=dt;
   if(dropCounter>dropInterval){ drop(); dropCounter=0; }
   drawBoard(); animId=requestAnimationFrame(update);
+}
+
+/* ===== SOUND (Web Audio, synthesised — no files needed) ===== */
+let audioCtx=null, soundOn=(localStorage.getItem('tetris_sound')!=='0');
+function initAudio(){
+  if(audioCtx) { if(audioCtx.state==='suspended') audioCtx.resume(); return; }
+  try{ audioCtx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){}
+}
+function tone(freq,start,dur,type,gain){
+  if(!soundOn||!audioCtx) return;
+  const t0=audioCtx.currentTime+start;
+  const osc=audioCtx.createOscillator(), g=audioCtx.createGain();
+  osc.type=type||'square'; osc.frequency.setValueAtTime(freq,t0);
+  g.gain.setValueAtTime(0,t0);
+  g.gain.linearRampToValueAtTime(gain||0.18,t0+0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+  osc.connect(g); g.connect(audioCtx.destination);
+  osc.start(t0); osc.stop(t0+dur+0.02);
+}
+function sweep(f1,f2,start,dur,type,gain){
+  if(!soundOn||!audioCtx) return;
+  const t0=audioCtx.currentTime+start;
+  const osc=audioCtx.createOscillator(), g=audioCtx.createGain();
+  osc.type=type||'sawtooth'; osc.frequency.setValueAtTime(f1,t0);
+  osc.frequency.exponentialRampToValueAtTime(f2,t0+dur);
+  g.gain.setValueAtTime(gain||0.16,t0);
+  g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+  osc.connect(g); g.connect(audioCtx.destination);
+  osc.start(t0); osc.stop(t0+dur+0.02);
+}
+/* rising arpeggio that scales with number of rows cleared (1-row → tetris) */
+function playClear(n){
+  if(!soundOn||!audioCtx) return;
+  const base=[523.25,659.25,783.99,1046.5,1318.5]; // C5 E5 G5 C6 E6
+  const steps=Math.min(n+1,base.length);
+  for(let i=0;i<steps;i++) tone(base[i],i*0.06,0.22,'triangle',0.2);
+  if(n>=4){ // Tetris! extra shimmer
+    sweep(880,1760,0.05,0.5,'square',0.12);
+    tone(2093,0.30,0.4,'triangle',0.16);
+  }
+}
+function playLock(){ tone(150,0,0.07,'square',0.12); }
+function playMove(){ tone(330,0,0.03,'square',0.05); }
+function playRotate(){ tone(440,0,0.045,'triangle',0.07); }
+function playDrop(){ sweep(420,120,0,0.12,'square',0.1); }
+function playSpecial(){ // for rare special pieces
+  tone(659.25,0,0.1,'triangle',0.18);
+  tone(987.77,0.09,0.14,'triangle',0.18);
+}
+function playGameOver(){ sweep(440,80,0,0.7,'sawtooth',0.16); tone(110,0.2,0.6,'square',0.12); }
+function toggleSound(){
+  soundOn=!soundOn; localStorage.setItem('tetris_sound',soundOn?'1':'0');
+  const b=document.getElementById('sound-btn'); if(b) b.textContent=soundOn?'🔊':'🔇';
+  if(soundOn){ initAudio(); tone(660,0,0.08,'triangle',0.15); }
 }
 
 /* ===== SAVE / RESUME ===== */
@@ -551,6 +615,7 @@ function checkSavedGame() {
 
 function resumeGame() {
   const s=getSavedState(); if(!s){ startGame(); return; }
+  initAudio();
   cancelAnimationFrame(animId);
   board=s.board; boardColors=s.boardColors;
   score=s.score; level=s.level; lines=s.lines;
@@ -570,6 +635,7 @@ function showStartMenu() {
 }
 
 function startGame() {
+  initAudio();
   cancelAnimationFrame(animId); clearSave();
   createBoard(); particles=[]; flashRows=[]; flashTimer=0;
   score=0; level=1; lines=0; dropInterval=800; dropCounter=0; lastTime=0; dropsSinceLastSave=0;
@@ -674,6 +740,7 @@ canvas.addEventListener('touchend',e=>{
 
 /* ===== INIT ===== */
 createBoard(); drawBoard(); checkSavedGame();
+document.getElementById('sound-btn').textContent=soundOn?'🔊':'🔇';
 </script>
 </body>
 </html>
