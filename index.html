@@ -51,6 +51,28 @@ body::before{
 }
 #sound-btn:active{background:rgba(255,255,255,0.15);}
 
+#celebrate-flash{
+  position:fixed;inset:0;z-index:40;pointer-events:none;opacity:0;
+  background:radial-gradient(ellipse at 50% 40%, rgba(255,220,120,0.35) 0%, transparent 65%);
+}
+#celebrate-flash.show{animation:flashFade .6s ease-out;}
+@keyframes flashFade{0%{opacity:0;}25%{opacity:1;}100%{opacity:0;}}
+
+#milestone-banner{
+  position:fixed;top:38%;left:50%;transform:translate(-50%,-50%) scale(.6);
+  z-index:60;pointer-events:none;opacity:0;white-space:nowrap;
+  font-family:monospace;font-weight:700;font-size:clamp(22px,7vw,40px);
+  color:#fff;text-shadow:0 0 16px rgba(255,200,80,0.9),0 0 30px rgba(255,120,200,0.6);
+}
+#milestone-banner.show{animation:milestonePop 2.2s cubic-bezier(.2,1.3,.4,1) forwards;}
+@keyframes milestonePop{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.5);}
+  15%{opacity:1;transform:translate(-50%,-50%) scale(1.15);}
+  30%{transform:translate(-50%,-50%) scale(1);}
+  80%{opacity:1;transform:translate(-50%,-60%) scale(1);}
+  100%{opacity:0;transform:translate(-50%,-75%) scale(.95);}
+}
+
 #game-area{position:relative;z-index:1;display:flex;gap:8px;align-items:flex-start;padding:0 8px;}
 #canvas-wrap{
   border:1px solid rgba(255,255,255,0.15);border-radius:8px;overflow:hidden;flex-shrink:0;
@@ -167,6 +189,8 @@ body::before{
 
 <div id="save-badge">✓ 已存檔</div>
 <button id="sound-btn" onclick="toggleSound()" title="音效開關">🔊</button>
+<div id="celebrate-flash"></div>
+<div id="milestone-banner"></div>
 
 <div id="top-bar">
   <div class="stat"><div class="stat-label">分數</div><div class="stat-value" id="score">0</div></div>
@@ -373,12 +397,84 @@ function spawnParticles(row) {
 }
 function updateParticles() {
   particles = particles.filter(p=>p.life>0);
-  particles.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.vy+=.18; p.life-=p.decay; });
+  particles.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.vy+=(p.g!=null?p.g:.18); p.life-=p.decay; });
+}
+
+/* ===== MILESTONE CELEBRATIONS (every 1000 pts) ===== */
+let lastMilestone=0;
+const FW_PALETTES=[
+  ['#FFD93D','#FF9A3C','#FF6B6B'],                 // 1000: warm gold
+  ['#00C9FF','#4D96FF','#C77DFF','#FF61D8'],        // 2000: cool rainbow
+  ['#6BCB77','#00FFD4','#FFD93D','#FF61D8','#FF6B6B'], // 3000: full spectrum
+];
+/* one firework burst: ring of glowing sparks that drift down */
+function spawnFirework(cx,cy,colors){
+  const n=18+Math.floor(Math.random()*10);
+  for(let i=0;i<n;i++){
+    const ang=(Math.PI*2*i)/n + Math.random()*0.3;
+    const spd=1.5+Math.random()*3.2;
+    particles.push({
+      x:cx, y:cy,
+      vx:Math.cos(ang)*spd, vy:Math.sin(ang)*spd,
+      r:Math.random()*2.2+1.6, color:colors[i%colors.length],
+      life:1, decay:Math.random()*0.018+0.012, g:0.06, glow:true
+    });
+  }
+}
+/* fire several bursts over time, intensity grows with milestone */
+function celebrate(m){
+  const tier=Math.min(m,FW_PALETTES.length)-1;
+  const colors=FW_PALETTES[tier<0?0:tier];
+  const bursts=Math.min(2+m,8);            // more bursts the higher you go
+  for(let b=0;b<bursts;b++){
+    setTimeout(()=>{
+      if(!gameRunning) return;
+      const cx=canvas.width*(0.15+Math.random()*0.7);
+      const cy=canvas.height*(0.12+Math.random()*0.45);
+      spawnFirework(cx,cy,colors);
+    }, b*220);
+  }
+  flashScreen();
+  showMilestoneBanner(m);
+  playFanfare(m);
+}
+function flashScreen(){
+  const el=document.getElementById('celebrate-flash');
+  if(!el) return;
+  el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+}
+let milestoneTimer=null;
+function showMilestoneBanner(m){
+  const el=document.getElementById('milestone-banner');
+  if(!el) return;
+  const score=m*1000;
+  const grand=m%5===0;
+  el.innerHTML=(grand?'🎆🎉 ':'🎆 ')+score.toLocaleString()+' 分'+(grand?' 大爆發！':'！');
+  el.classList.add('show');
+  clearTimeout(milestoneTimer);
+  milestoneTimer=setTimeout(()=>el.classList.remove('show'),2200);
+}
+/* triumphant rising fanfare; longer & brighter at higher milestones */
+function playFanfare(m){
+  if(!soundOn||!audioCtx) return;
+  const notes=[523.25,659.25,783.99,1046.5,1318.5,1567.98]; // C E G C E G
+  const len=Math.min(3+m,notes.length);
+  for(let i=0;i<len;i++) tone(notes[i],i*0.1,0.32,'triangle',0.2);
+  if(m%5===0){ sweep(880,1760,len*0.1,0.6,'square',0.12); tone(2093,len*0.1+0.1,0.5,'triangle',0.16); }
+}
+/* call after score changes — fires once per 1000 crossed */
+function checkMilestone(){
+  const m=Math.floor(score/1000);
+  if(m>lastMilestone) celebrate(m);
+  lastMilestone=m;
 }
 function drawParticles() {
   particles.forEach(p=>{
-    ctx.globalAlpha=p.life; ctx.fillStyle=p.color;
+    ctx.globalAlpha=Math.max(0,Math.min(1,p.life));
+    ctx.fillStyle=p.color;
+    if(p.glow){ ctx.shadowColor=p.color; ctx.shadowBlur=p.r*3; }
     ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+    if(p.glow) ctx.shadowBlur=0;
   });
   ctx.globalAlpha=1;
 }
@@ -491,7 +587,7 @@ function drop() {
       const pts=[0,100,300,500,800];
       score+=(pts[c]||800)*level; lines+=c; level=Math.floor(lines/10)+1;
       dropInterval=Math.max(80,800-(level-1)*70); updateStats();
-      playClear(c);
+      playClear(c); checkMilestone();
     } else { playLock(); }
     spawnPiece();
     if(++dropsSinceLastSave>=1){ saveState(); dropsSinceLastSave=0; }
@@ -622,6 +718,7 @@ function resumeGame() {
   dropInterval=s.dropInterval||Math.max(80,800-(level-1)*70);
   currentPiece=s.currentPiece; nextPiece=s.nextPiece;
   particles=[]; flashRows=[]; flashTimer=0; dropCounter=0; lastTime=0; dropsSinceLastSave=0;
+  lastMilestone=Math.floor(score/1000);
   updateStats(); drawNext();
   ['overlay','name-modal','lb-overlay'].forEach(id=>document.getElementById(id).style.display='none');
   gameRunning=true; animId=requestAnimationFrame(update);
@@ -638,7 +735,7 @@ function startGame() {
   initAudio();
   cancelAnimationFrame(animId); clearSave();
   createBoard(); particles=[]; flashRows=[]; flashTimer=0;
-  score=0; level=1; lines=0; dropInterval=800; dropCounter=0; lastTime=0; dropsSinceLastSave=0;
+  score=0; level=1; lines=0; dropInterval=800; dropCounter=0; lastTime=0; dropsSinceLastSave=0; lastMilestone=0;
   updateStats(); nextPiece=randPiece(); spawnPiece();
   ['overlay','name-modal','lb-overlay'].forEach(id=>document.getElementById(id).style.display='none');
   gameRunning=true; animId=requestAnimationFrame(update);
