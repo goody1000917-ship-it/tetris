@@ -484,7 +484,7 @@ function drop() {
       dropInterval=Math.max(80,800-(level-1)*70); updateStats();
     }
     spawnPiece();
-    if(++dropsSinceLastSave>=3){ saveState(); dropsSinceLastSave=0; }
+    if(++dropsSinceLastSave>=1){ saveState(); dropsSinceLastSave=0; }
   }
 }
 function hardDrop(){ while(!collide(board,currentPiece,0,1)) currentPiece.y++; drop(); }
@@ -542,7 +542,7 @@ function flashSaveBadge() {
 
 function checkSavedGame() {
   const s=getSavedState();
-  if(!s||s.score===0) return;
+  if(!s) return;
   const mins=Math.round((Date.now()-s.ts)/60000);
   const timeStr=mins<1?'剛剛':mins<60?`${mins} 分鐘前`:`${Math.floor(mins/60)} 小時前`;
   document.getElementById('resume-section').style.display='block';
@@ -563,8 +563,8 @@ function resumeGame() {
 }
 
 function showStartMenu() {
+  saveState();
   gameRunning=false; cancelAnimationFrame(animId);
-  if(score>0) saveState();
   checkSavedGame();
   document.getElementById('overlay').style.display='flex';
 }
