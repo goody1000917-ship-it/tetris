@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>空城計 · 3D 電影運鏡模擬</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:"Noto Serif TC","STKaiti","KaiTi",serif;cursor:default;}
+#app{position:fixed;inset:0;}
+canvas{display:block;}
+
+/* 電影黑邊 */
+.bar{position:fixed;left:0;width:100%;height:11vh;background:#000;z-index:20;transition:height .8s ease;}
+.bar.top{top:0;box-shadow:0 4px 20px rgba(0,0,0,.6);}
+.bar.bottom{bottom:0;box-shadow:0 -4px 20px rgba(0,0,0,.6);}
+
+/* 字幕 */
+#subtitle{position:fixed;left:50%;bottom:13vh;transform:translateX(-50%);
+  color:#f4ecd8;font-size:clamp(16px,2.4vw,30px);letter-spacing:.18em;text-align:center;
+  z-index:21;text-shadow:0 2px 8px #000,0 0 20px rgba(0,0,0,.8);opacity:0;
+  transition:opacity 1s ease;pointer-events:none;max-width:80%;line-height:1.6;}
+#subtitle.show{opacity:1;}
+
+/* 章節大標 */
+#chapter{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);
+  color:#f4ecd8;text-align:center;z-index:22;opacity:0;transition:opacity 1.4s ease;pointer-events:none;}
+#chapter.show{opacity:1;}
+#chapter .cn{font-size:clamp(40px,8vw,110px);letter-spacing:.3em;font-weight:600;
+  text-shadow:0 4px 30px #000,0 0 40px rgba(180,40,30,.4);}
+#chapter .sub{font-size:clamp(13px,2vw,22px);letter-spacing:.5em;margin-top:18px;color:#c9a86a;}
+
+/* 開場/控制 */
+#intro{position:fixed;inset:0;z-index:40;background:radial-gradient(ellipse at center,#1a1410 0%,#000 75%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;color:#f4ecd8;
+  transition:opacity 1.2s ease;}
+#intro h1{font-size:clamp(44px,11vw,140px);letter-spacing:.35em;margin-left:.35em;
+  text-shadow:0 0 50px rgba(200,60,40,.5);}
+#intro .romaji{font-size:clamp(12px,2vw,20px);letter-spacing:.5em;color:#c9a86a;margin-top:10px;}
+#intro p{margin-top:34px;font-size:clamp(13px,1.6vw,17px);color:rgba(244,236,216,.6);letter-spacing:.12em;}
+#playBtn{margin-top:50px;padding:16px 54px;background:transparent;color:#f4ecd8;
+  border:1px solid #c9a86a;letter-spacing:.4em;font-size:16px;cursor:pointer;font-family:inherit;
+  transition:all .4s ease;}
+#playBtn:hover{background:#c9a86a;color:#1a1410;letter-spacing:.5em;}
+#intro.hide{opacity:0;pointer-events:none;}
+
+/* HUD */
+#hud{position:fixed;left:0;bottom:11vh;width:100%;z-index:23;display:flex;justify-content:center;
+  gap:10px;padding:14px;opacity:0;transition:opacity .6s ease;}
+#hud.show{opacity:.85;}
+.hud-btn{background:rgba(20,16,12,.6);border:1px solid rgba(201,168,106,.4);color:#f4ecd8;
+  padding:8px 16px;font-size:12px;letter-spacing:.15em;cursor:pointer;font-family:inherit;border-radius:3px;
+  backdrop-filter:blur(4px);transition:all .3s;}
+.hud-btn:hover{background:rgba(201,168,106,.25);}
+#shotInfo{position:fixed;top:12vh;left:20px;z-index:23;color:rgba(201,168,106,.7);
+  font-size:11px;letter-spacing:.2em;opacity:0;transition:opacity .5s;font-family:monospace;}
+#shotInfo.show{opacity:1;}
+
+/* 結束卡 */
+#endcard{position:fixed;inset:0;z-index:30;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;background:rgba(0,0,0,.82);color:#f4ecd8;opacity:0;pointer-events:none;
+  transition:opacity 1.6s ease;text-align:center;padding:20px;}
+#endcard.show{opacity:1;pointer-events:auto;}
+#endcard .poem{font-size:clamp(16px,2.4vw,28px);line-height:2.2;letter-spacing:.2em;}
+#endcard .poem span{display:block;opacity:0;animation:fadeLine 1.2s forwards;}
+#endcard .by{margin-top:30px;color:#c9a86a;letter-spacing:.3em;font-size:14px;}
+#replay{margin-top:46px;padding:14px 44px;background:transparent;color:#f4ecd8;border:1px solid #c9a86a;
+  letter-spacing:.4em;cursor:pointer;font-family:inherit;font-size:14px;transition:all .4s;}
+#replay:hover{background:#c9a86a;color:#1a1410;}
+@keyframes fadeLine{to{opacity:1;}}
+
+#loading{position:fixed;inset:0;z-index:50;background:#000;display:flex;align-items:center;
+  justify-content:center;color:#c9a86a;letter-spacing:.4em;font-size:14px;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<div class="bar top"></div>
+<div class="bar bottom"></div>
+<div id="subtitle"></div>
+<div id="chapter"></div>
+<div id="shotInfo"></div>
+
+<div id="hud">
+  <button class="hud-btn" id="btnReplay">↻ 重播</button>
+  <button class="hud-btn" id="btnPause">❚❚ 暫停</button>
+  <button class="hud-btn" id="btnFree">⊙ 自由視角</button>
+</div>
+
+<div id="endcard">
+  <div class="poem">
+    <span style="animation-delay:.3s">瑤琴三尺勝雄師，</span>
+    <span style="animation-delay:1.6s">諸葛西城退敵時。</span>
+    <span style="animation-delay:2.9s">十五萬人回馬處，</span>
+    <span style="animation-delay:4.2s">土人指點到今疑。</span>
+  </div>
+  <div class="by">—— 空城計 · 《三國演義》第九十五回</div>
+  <button id="replay">↻ 重新觀看</button>
+</div>
+
+<div id="intro">
+  <h1>空城計</h1>
+  <div class="romaji">THE EMPTY FORT STRATEGY</div>
+  <p>諸葛亮 · 司馬懿 · 西城 · 一座空城，一張瑤琴</p>
+  <button id="playBtn">▶ 開始放映</button>
+</div>
+
+<div id="loading">載入中 LOADING…</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* ============================================================
+   空城計 3D 電影模擬
+   西城樓上，諸葛亮焚香操琴；城下兩童灑掃；
+   司馬懿十五萬大軍逼近，疑有埋伏，引兵而退。
+   ============================================================ */
+
+const W = () => window.innerWidth, H = () => window.innerHeight;
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(W(),H());
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+document.getElementById('app').appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+// 黃昏暮色，遠處沙塵
+scene.background = new THREE.Color(0xd8a86b);
+scene.fog = new THREE.FogExp2(0xd8a86b, 0.0072);
+
+const camera = new THREE.PerspectiveCamera(38, W()/H(), 0.5, 2000);
+camera.position.set(0,30,160);
+
+/* ---------- 燈光：黃昏斜陽 ---------- */
+const hemi = new THREE.HemisphereLight(0xffe2b0, 0x4a3826, 0.7);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xffd28a, 2.1);
+sun.position.set(-120,90,60);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048,2048);
+sun.shadow.camera.near=10; sun.shadow.camera.far=400;
+sun.shadow.camera.left=-160; sun.shadow.camera.right=160;
+sun.shadow.camera.top=160; sun.shadow.camera.bottom=-160;
+sun.shadow.bias=-0.0004;
+scene.add(sun);
+const rim = new THREE.DirectionalLight(0xff7a3a, 0.6);
+rim.position.set(80,40,-100);
+scene.add(rim);
+
+/* ---------- 地面 ---------- */
+const groundMat = new THREE.MeshStandardMaterial({color:0xb89466, roughness:1});
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(2000,2000), groundMat);
+ground.rotation.x = -Math.PI/2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// 遠山剪影
+function makeMountains(z,color,scl){
+  const g = new THREE.BufferGeometry();
+  const pts=[]; let x=-900;
+  pts.push(x,0,z);
+  while(x<900){ const h=40+Math.random()*90*scl; pts.push(x,h,z); x+=60+Math.random()*70; pts.push(x,0,z);}
+  const verts=[];
+  for(let i=0;i<pts.length-6;i+=3){
+    verts.push(pts[i],0,z, pts[i+3],pts[i+4],z, pts[i+6],0,z);
+  }
+  g.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));
+  const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color,fog:true}));
+  scene.add(m); return m;
+}
+makeMountains(-650,0x9c7a52,1.4);
+makeMountains(-520,0x8a6a45,1.0);
+
+/* ============================================================
+   西城：城牆 + 城門 + 城樓
+   ============================================================ */
+const city = new THREE.Group();
+scene.add(city);
+
+const stoneMat = new THREE.MeshStandardMaterial({color:0x8d8378, roughness:.95});
+const darkStoneMat = new THREE.MeshStandardMaterial({color:0x6e6258, roughness:1});
+const woodMat = new THREE.MeshStandardMaterial({color:0x6e3b22, roughness:.8});
+const woodDarkMat = new THREE.MeshStandardMaterial({color:0x4a2614, roughness:.85});
+const roofMat = new THREE.MeshStandardMaterial({color:0x2d3640, roughness:.6, metalness:.1});
+const redMat = new THREE.MeshStandardMaterial({color:0x9c2b1e, roughness:.7});
+const goldMat = new THREE.MeshStandardMaterial({color:0xc9a44a, roughness:.4, metalness:.5});
+
+const WALL_H = 26, WALL_Z = -40;
+
+// 城牆主體（左右兩段，中間留城門）
+function wallSeg(x,w){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,WALL_H,14), stoneMat);
+  m.position.set(x,WALL_H/2,WALL_Z); m.castShadow=true; m.receiveShadow=true;
+  city.add(m);
+  // 牆頂雉堞
+  for(let i=-w/2+4;i<w/2-2;i+=8){
+    const c=new THREE.Mesh(new THREE.BoxGeometry(4,4,14),darkStoneMat);
+    c.position.set(x+i,WALL_H+2,WALL_Z); c.castShadow=true; city.add(c);
+  }
+}
+wallSeg(-46,68);
+wallSeg(46,68);
+
+// 城門洞兩側門柱 + 拱
+const GATE_W = 24;
+const archMat = darkStoneMat;
+[-1,1].forEach(s=>{
+  const p=new THREE.Mesh(new THREE.BoxGeometry(8,WALL_H,15),archMat);
+  p.position.set(s*(GATE_W/2+4),WALL_H/2,WALL_Z); p.castShadow=true; city.add(p);
+});
+// 拱頂
+const arch=new THREE.Mesh(new THREE.BoxGeometry(GATE_W+16,7,15),archMat);
+arch.position.set(0,WALL_H-3.5,WALL_Z); arch.castShadow=true; city.add(arch);
+// 門洞內暗面
+const gateDark=new THREE.Mesh(new THREE.PlaneGeometry(GATE_W,WALL_H-7),new THREE.MeshBasicMaterial({color:0x0d0a08}));
+gateDark.position.set(0,(WALL_H-7)/2,WALL_Z-0.5); city.add(gateDark);
+
+// 敞開的兩扇城門
+const gateGroup=new THREE.Group(); city.add(gateGroup);
+function gateLeaf(side){
+  const g=new THREE.Group();
+  const leaf=new THREE.Mesh(new THREE.BoxGeometry(GATE_W/2-0.5,WALL_H-8,1.2),woodDarkMat);
+  leaf.position.x = side*(GATE_W/4);
+  leaf.castShadow=true;
+  // 門釘
+  for(let r=0;r<4;r++)for(let c=0;c<3;c++){
+    const n=new THREE.Mesh(new THREE.SphereGeometry(.5,8,8),goldMat);
+    n.position.set(side*(GATE_W/4)-3+c*3, -6+r*4, 0.7);
+    g.add(n);
+  }
+  g.add(leaf);
+  g.position.set(side*(GATE_W/2),(WALL_H-8)/2+0.5,WALL_Z+7.5);
+  return g;
+}
+const leafL=gateLeaf(-1), leafR=gateLeaf(1);
+// 敞開：旋轉門扇
+leafL.rotation.y = Math.PI*0.62;
+leafR.rotation.y = -Math.PI*0.62;
+gateGroup.add(leafL,leafR);
+
+/* ---------- 城樓（諸葛亮所在） ---------- */
+const tower=new THREE.Group();
+tower.position.set(0,WALL_H,WALL_Z);
+city.add(tower);
+// 樓台基座
+const base=new THREE.Mesh(new THREE.BoxGeometry(46,4,16),woodMat);
+base.position.y=2; base.castShadow=true; base.receiveShadow=true; tower.add(base);
+// 立柱
+[-20,-7,7,20].forEach(x=>{
+  const col=new THREE.Mesh(new THREE.CylinderGeometry(1.1,1.1,16,12),redMat);
+  col.position.set(x,12,-5); col.castShadow=true; tower.add(col);
+});
+// 欄杆
+const railF=new THREE.Mesh(new THREE.BoxGeometry(46,1,1),redMat);
+railF.position.set(0,7,3.5); tower.add(railF);
+for(let x=-21;x<=21;x+=3.5){
+  const b=new THREE.Mesh(new THREE.BoxGeometry(.5,5,.5),redMat);
+  b.position.set(x,5,3.5); tower.add(b);
+}
+// 飛簷屋頂
+const roofGeo=new THREE.ConeGeometry(34,11,4);
+const roof=new THREE.Mesh(roofGeo,roofMat);
+roof.position.set(0,26,-5); roof.rotation.y=Math.PI/4; roof.castShadow=true; tower.add(roof);
+const roof2=new THREE.Mesh(new THREE.ConeGeometry(40,5,4),roofMat);
+roof2.position.set(0,21,-5); roof2.rotation.y=Math.PI/4; tower.add(roof2);
+// 屋脊金頂
+const finial=new THREE.Mesh(new THREE.SphereGeometry(1.6,12,12),goldMat);
+finial.position.set(0,32,-5); tower.add(finial);
+
+// 匾額「西城」
+const plaque=new THREE.Mesh(new THREE.BoxGeometry(12,5,.6),woodDarkMat);
+plaque.position.set(0,18.5,2.5); tower.add(plaque);
+function textTexture(txt,bg='#3a1d10',fg='#d8b46a'){
+  const c=document.createElement('canvas');c.width=256;c.height=128;
+  const x=c.getContext('2d');x.fillStyle=bg;x.fillRect(0,0,256,128);
+  x.fillStyle=fg;x.font='bold 86px "STKaiti","KaiTi",serif';x.textAlign='center';x.textBaseline='middle';
+  x.fillText(txt,128,70);
+  const t=new THREE.CanvasTexture(c);return t;
+}
+const plaqueFace=new THREE.Mesh(new THREE.PlaneGeometry(11,4.4),
+  new THREE.MeshBasicMaterial({map:textTexture('西城')}));
+plaqueFace.position.set(0,18.5,2.85); tower.add(plaqueFace);
+
+/* ============================================================
+   人物（以基本幾何體堆疊的低多邊形人偶）
+   ============================================================ */
+function makePerson({robe=0xf4ecd8, trim=0x9c2b1e, skin=0xe8c39a, scale=1, hat=false}={}){
+  const g=new THREE.Group();
+  const robeMat=new THREE.MeshStandardMaterial({color:robe,roughness:.85});
+  const trimMat=new THREE.MeshStandardMaterial({color:trim,roughness:.7});
+  const skinMat=new THREE.MeshStandardMaterial({color:skin,roughness:.6});
+  // 袍身（圓台）
+  const body=new THREE.Mesh(new THREE.CylinderGeometry(2.4,3.6,9,16),robeMat);
+  body.position.y=5; body.castShadow=true; g.add(body);
+  const sash=new THREE.Mesh(new THREE.CylinderGeometry(2.5,2.5,1.4,16),trimMat);
+  sash.position.y=7; g.add(sash);
+  // 肩
+  const shoulder=new THREE.Mesh(new THREE.SphereGeometry(2.6,16,12,0,Math.PI*2,0,Math.PI/2),robeMat);
+  shoulder.position.y=9.4; g.add(shoulder);
+  // 頭頸
+  const neck=new THREE.Mesh(new THREE.CylinderGeometry(.7,.9,1,8),skinMat);
+  neck.position.y=10; g.add(neck);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(1.5,16,16),skinMat);
+  head.position.y=11.6; head.castShadow=true; g.add(head);
+  // 髮髻 / 冠
+  if(hat){
+    const guan=new THREE.Mesh(new THREE.CylinderGeometry(1.2,1.4,2.4,8),new THREE.MeshStandardMaterial({color:0x222,roughness:.5}));
+    guan.position.y=13.2; g.add(guan);
+  }else{
+    const bun=new THREE.Mesh(new THREE.SphereGeometry(.9,10,10),new THREE.MeshStandardMaterial({color:0x1a1a1a,roughness:.6}));
+    bun.position.y=12.9; g.add(bun);
+  }
+  // 雙臂（袖）
+  const armGeo=new THREE.CylinderGeometry(.8,1.1,6,10);
+  const armL=new THREE.Mesh(armGeo,robeMat); armL.position.set(-2.6,7.5,0); armL.rotation.z=.5; g.add(armL);
+  const armR=new THREE.Mesh(armGeo,robeMat); armR.position.set(2.6,7.5,0); armR.rotation.z=-.5; g.add(armR);
+  g.scale.setScalar(scale);
+  g.userData={armL,armR,head};
+  return g;
+}
+
+/* ---------- 諸葛亮：城樓上撫琴 ---------- */
+const kongming=makePerson({robe:0xeef3f0, trim:0x2a6a55, scale:1.15, hat:true});
+kongming.position.set(0, WALL_H+4, WALL_Z+1);
+// 羽扇綸巾風骨：坐姿，壓低身體
+kongming.scale.y*=0.82;
+scene.add(kongming);
+// 古琴（橫置案上）
+const qinTable=new THREE.Mesh(new THREE.BoxGeometry(10,.6,4),woodDarkMat);
+qinTable.position.set(0,WALL_H+6.2,WALL_Z+5); qinTable.castShadow=true; scene.add(qinTable);
+const qin=new THREE.Mesh(new THREE.BoxGeometry(9,.5,2.2),new THREE.MeshStandardMaterial({color:0x3a2416,roughness:.5}));
+qin.position.set(0,WALL_H+6.6,WALL_Z+5); scene.add(qin);
+// 香爐
+const censer=new THREE.Mesh(new THREE.CylinderGeometry(.8,1,1.4,12),goldMat);
+censer.position.set(5,WALL_H+6.8,WALL_Z+5); scene.add(censer);
+
+// 香煙（粒子）
+const smokeCount=60;
+const smokeGeo=new THREE.BufferGeometry();
+const smokePos=new Float32Array(smokeCount*3);
+const smokeSeed=[];
+for(let i=0;i<smokeCount;i++){
+  smokePos[i*3]=5+(Math.random()-.5);
+  smokePos[i*3+1]=WALL_H+8+Math.random()*14;
+  smokePos[i*3+2]=WALL_Z+5+(Math.random()-.5);
+  smokeSeed.push(Math.random());
+}
+smokeGeo.setAttribute('position',new THREE.BufferAttribute(smokePos,3));
+const smokeMat=new THREE.PointsMaterial({color:0xe8e0d0,size:1.6,transparent:true,opacity:.35,depthWrite:false});
+const smoke=new THREE.Points(smokeGeo,smokeMat); scene.add(smoke);
+
+/* ---------- 城門前兩名童子灑掃 ---------- */
+const sweepers=[];
+[-7,7].forEach((x,i)=>{
+  const boy=makePerson({robe:i?0xccd2d8:0xd8cab0, trim:0x555, skin:0xeac9a0, scale:.72});
+  boy.position.set(x,0,WALL_Z+22);
+  scene.add(boy);
+  // 掃帚
+  const broom=new THREE.Group();
+  const handle=new THREE.Mesh(new THREE.CylinderGeometry(.18,.18,9,6),woodMat);
+  handle.rotation.z=.6; broom.add(handle);
+  const bristle=new THREE.Mesh(new THREE.ConeGeometry(1.4,3,8),new THREE.MeshStandardMaterial({color:0xb89050,roughness:1}));
+  bristle.position.set(3.5,-3.2,0); bristle.rotation.z=-.5; broom.add(bristle);
+  broom.position.set(x+(i?-3:3),5,WALL_Z+24); broom.scale.setScalar(.8);
+  scene.add(broom);
+  sweepers.push({boy,broom,phase:i*Math.PI});
+});
+
+/* ============================================================
+   司馬懿大軍（城外，遠處逼近）
+   ============================================================ */
+const army=new THREE.Group();
+army.position.z=120;            // 起始：遠方
+scene.add(army);
+
+const soldierMat=new THREE.MeshStandardMaterial({color:0x4a4a52,roughness:.7,metalness:.3});
+const armorMat=new THREE.MeshStandardMaterial({color:0x6a5a3a,roughness:.5,metalness:.4});
+const soldiers=[];
+const ROWS=8, COLS=16;
+for(let r=0;r<ROWS;r++){
+  for(let c=0;c<COLS;c++){
+    const s=new THREE.Group();
+    const body=new THREE.Mesh(new THREE.CylinderGeometry(1.1,1.4,6,8),armorMat);
+    body.position.y=4; body.castShadow=true; s.add(body);
+    const head=new THREE.Mesh(new THREE.SphereGeometry(.9,10,10),new THREE.MeshStandardMaterial({color:0x3a3a40}));
+    head.position.y=8; s.add(head);
+    // 長矛
+    const spear=new THREE.Mesh(new THREE.CylinderGeometry(.1,.1,14,6),woodMat);
+    spear.position.set(1.4,7,0); spear.rotation.z=.12; s.add(spear);
+    const tip=new THREE.Mesh(new THREE.ConeGeometry(.3,1.2,6),soldierMat);
+    tip.position.set(2.2,14,0); s.add(tip);
+    s.position.set((c-COLS/2)*7+(r%2?3:0), 0, r*8);
+    s.userData={baseX:s.position.x, baseZ:s.position.z, phase:Math.random()*Math.PI*2};
+    army.add(s); soldiers.push(s);
+  }
+}
+// 軍旗
+const banners=[];
+function textTextureTall(txt,bg='#8a1c12',fg='#f0e0a0'){
+  const c=document.createElement('canvas');c.width=128;c.height=256;
+  const x=c.getContext('2d');x.fillStyle=bg;x.fillRect(0,0,128,256);
+  x.fillStyle=fg;x.font='bold 70px "STKaiti","KaiTi",serif';x.textAlign='center';x.textBaseline='middle';
+  x.fillText(txt,64,80);x.fillText('軍',64,170);
+  return new THREE.CanvasTexture(c);
+}
+for(let i=0;i<6;i++){
+  const pole=new THREE.Mesh(new THREE.CylinderGeometry(.2,.2,26,6),woodDarkMat);
+  const flag=new THREE.Mesh(new THREE.PlaneGeometry(7,11),
+    new THREE.MeshStandardMaterial({map:textTextureTall(i%2?'魏':'司'),side:THREE.DoubleSide,roughness:.9}));
+  flag.position.set(3.5,7,0);
+  const grp=new THREE.Group(); grp.add(pole); pole.position.y=13; grp.add(flag); flag.position.y=18;
+  grp.position.set((i-2.5)*22, 0, -6);
+  grp.userData={flag,phase:Math.random()*Math.PI*2};
+  army.add(grp); banners.push(grp);
+}
+
+/* ---------- 司馬懿（軍前主將，騎姿示意） ---------- */
+const sima=makePerson({robe:0x55504a, trim:0xc9a44a, scale:1.2, hat:true});
+sima.position.set(0,4,-14);   // 軍陣最前
+// 坐騎（簡化）
+const horse=new THREE.Group();
+const hbody=new THREE.Mesh(new THREE.CapsuleGeometry(2,6,4,8),new THREE.MeshStandardMaterial({color:0x3a2a1a,roughness:.8}));
+hbody.rotation.z=Math.PI/2; hbody.position.y=5; horse.add(hbody);
+const hneck=new THREE.Mesh(new THREE.CylinderGeometry(1,1.4,5,8),new THREE.MeshStandardMaterial({color:0x3a2a1a,roughness:.8}));
+hneck.position.set(4,7,0); hneck.rotation.z=-.6; horse.add(hneck);
+const hhead=new THREE.Mesh(new THREE.BoxGeometry(3,1.6,1.6),new THREE.MeshStandardMaterial({color:0x3a2a1a}));
+hhead.position.set(6,9,0); horse.add(hhead);
+[[-2,-2],[2,-2],[-2,2],[2,2]].forEach(([x,z])=>{
+  const leg=new THREE.Mesh(new THREE.CylinderGeometry(.5,.4,5,6),new THREE.MeshStandardMaterial({color:0x2a1e12}));
+  leg.position.set(x,2.5,z); horse.add(leg);
+});
+horse.position.set(0,0,-14); horse.castShadow=true;
+army.add(horse); army.add(sima);
+
+/* ============================================================
+   電影分鏡 STORYBOARD
+   每個 shot：起訖相機位置/目標、時長、字幕、章節
+   ============================================================ */
+const V = (x,y,z)=>new THREE.Vector3(x,y,z);
+
+const shots = [
+  { id:'EST', dur:7, ease:'inout',
+    chapter:{cn:'第一幕 · 兵臨城下', sub:'BUILDING 228 A.D. · XICHENG'},
+    sub:'蜀漢建興六年，司馬懿引大軍十五萬，望西城蜂擁而來。',
+    from:{p:V(-130,70,240),t:V(0,30,40)}, to:{p:V(-60,40,210),t:V(0,20,60)} },
+
+  { id:'ARMY', dur:7, ease:'inout',
+    sub:'塵土蔽日，旌旗蔽空 —— 而城中，僅餘老弱二千五百人。',
+    from:{p:V(90,18,200),t:V(0,8,120)}, to:{p:V(-40,12,165),t:V(0,8,120)} },
+
+  { id:'REVEAL', dur:8, ease:'inout',
+    chapter:{cn:'第二幕 · 大開城門', sub:'THE GATES OPEN'},
+    sub:'孔明傳令：藏起旌旗，大開四門，每門用二十軍士，扮作百姓灑掃。',
+    from:{p:V(0,4,40),t:V(0,12,WALL_Z)}, to:{p:V(0,30,28),t:V(0,WALL_H+6,WALL_Z)} },
+
+  { id:'CRANE', dur:8, ease:'inout',
+    sub:'城樓之上，孔明披鶴氅、戴綸巾，焚香操琴，憑欄而坐。',
+    from:{p:V(34,18,18),t:V(0,WALL_H+6,WALL_Z)}, to:{p:V(8,WALL_H+12,18),t:V(0,WALL_H+6,WALL_Z+2)} },
+
+  { id:'CLOSEUP', dur:8, ease:'inout',
+    sub:'笑容可掬，焚香操琴 —— 琴聲不亂，意態從容。',
+    from:{p:V(11,WALL_H+9,12),t:V(0,WALL_H+7,WALL_Z+4)}, to:{p:V(-9,WALL_H+8,11),t:V(0,WALL_H+7,WALL_Z+4)} },
+
+  { id:'POV', dur:7, ease:'inout',
+    chapter:{cn:'第三幕 · 司馬生疑', sub:"SIMA YI'S DOUBT"},
+    sub:'司馬懿兵至城下，見此光景，疑惑不已，盡皆失色。',
+    from:{p:V(0,10,40),t:V(0,WALL_H+8,WALL_Z)}, to:{p:V(-3,11,55),t:V(0,WALL_H+7,WALL_Z)} },
+
+  { id:'SIMA', dur:7, ease:'inout',
+    sub:'「亮平生謹慎，從不弄險。今大開城門，必有埋伏。」',
+    from:{p:V(-30,16,95),t:V(0,6,72)}, to:{p:V(24,14,92),t:V(0,6,76)} },
+
+  { id:'RETREAT', dur:9, ease:'inout',
+    chapter:{cn:'第四幕 · 引兵而退', sub:'THE ARMY WITHDRAWS'},
+    sub:'司馬懿令後軍作前軍，前軍作後軍，望北山路而退。',
+    from:{p:V(70,30,150),t:V(0,8,110)}, to:{p:V(120,55,230),t:V(20,6,150)} },
+
+  { id:'FINAL', dur:9, ease:'out',
+    sub:'一座空城，一張瑤琴，退去十五萬雄兵。此乃 —— 空城計。',
+    from:{p:V(0,55,150),t:V(0,WALL_H,WALL_Z)}, to:{p:V(0,80,90),t:V(0,WALL_H,WALL_Z)} },
+];
+
+/* ---------- 字幕 / 章節 UI ---------- */
+const subEl=document.getElementById('subtitle');
+const chapEl=document.getElementById('chapter');
+const shotInfoEl=document.getElementById('shotInfo');
+function showSub(t){ subEl.textContent=t; subEl.classList.add('show'); }
+function hideSub(){ subEl.classList.remove('show'); }
+function showChapter(c){
+  chapEl.innerHTML=`<div class="cn">${c.cn}</div><div class="sub">${c.sub}</div>`;
+  chapEl.classList.add('show');
+  setTimeout(()=>chapEl.classList.remove('show'),2600);
+}
+
+/* ---------- 緩動 ---------- */
+const ease={
+  inout:t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2,
+  out:t=>1-Math.pow(1-t,3),
+  in:t=>t*t*t,
+  linear:t=>t,
+};
+
+/* ============================================================
+   播放控制
+   ============================================================ */
+let state='idle';       // idle | playing | paused | free | done
+let shotIdx=0, shotT=0, clock=new THREE.Clock();
+let storyTime=0;
+
+function startShot(i){
+  shotIdx=i; shotT=0;
+  const s=shots[i];
+  shotInfoEl.textContent=`SHOT ${String(i+1).padStart(2,'0')} / ${shots.length}  ·  ${s.id}`;
+  shotInfoEl.classList.add('show');
+  if(s.chapter) showChapter(s.chapter);
+  // 字幕略延遲出現
+  hideSub();
+  setTimeout(()=>{ if(shotIdx===i && state==='playing') showSub(s.sub); }, s.chapter?1400:600);
+}
+
+function play(){
+  document.getElementById('intro').classList.add('hide');
+  document.querySelectorAll('.bar').forEach(b=>b.style.height='11vh');
+  document.getElementById('hud').classList.add('show');
+  state='playing';
+  startShot(0);
+}
+
+/* ---------- 相機運鏡 ---------- */
+const camWork=new THREE.Vector3(), camTgt=new THREE.Vector3();
+function updateCamera(dt){
+  const s=shots[shotIdx];
+  shotT += dt;
+  let p = Math.min(shotT/s.dur,1);
+  const e = ease[s.ease](p);
+  camWork.lerpVectors(s.from.p, s.to.p, e);
+  camTgt.lerpVectors(s.from.t, s.to.t, e);
+  // 手持微震，增添電影感
+  const shake=0.18;
+  camWork.x+=Math.sin(storyTime*1.3)*shake;
+  camWork.y+=Math.cos(storyTime*1.7)*shake*0.6;
+  camera.position.copy(camWork);
+  camera.lookAt(camTgt);
+  // 焦距呼吸
+  camera.fov = 38 + Math.sin(storyTime*0.4)*1.2;
+  camera.updateProjectionMatrix();
+
+  if(p>=1){
+    if(shotIdx<shots.length-1){ startShot(shotIdx+1); }
+    else { finish(); }
+  }
+}
+
+function finish(){
+  state='done';
+  hideSub();
+  shotInfoEl.classList.remove('show');
+  document.getElementById('endcard').classList.add('show');
+}
+
+/* ============================================================
+   場景動畫（與分鏡並行）
+   ============================================================ */
+function animateScene(t,dt){
+  // 香煙上升
+  const sp=smoke.geometry.attributes.position;
+  for(let i=0;i<smokeCount;i++){
+    let y=sp.getY(i)+dt*(1.2+smokeSeed[i]);
+    let x=sp.getX(i)+Math.sin(t*0.8+smokeSeed[i]*6)*dt*0.4;
+    if(y>WALL_H+26){ y=WALL_H+8; x=5+(Math.random()-.5);}
+    sp.setY(i,y); sp.setX(i,x);
+  }
+  sp.needsUpdate=true;
+  smokeMat.opacity=0.32+Math.sin(t)*0.04;
+
+  // 諸葛亮撫琴：雙臂微動 + 身體輕晃
+  const k=kongming.userData;
+  k.armL.rotation.x=Math.sin(t*3)*0.25;
+  k.armR.rotation.x=Math.cos(t*3.2)*0.25;
+  kongming.position.y = WALL_H+4 + Math.sin(t*1.5)*0.12;
+  k.head.rotation.z=Math.sin(t*0.8)*0.06;
+
+  // 童子灑掃
+  sweepers.forEach(s=>{
+    s.broom.rotation.z = 0.3+Math.sin(t*2+s.phase)*0.35;
+    s.broom.position.x = s.boy.position.x+(s.phase?-3:3)+Math.sin(t*2+s.phase)*1.5;
+    s.boy.userData.armR.rotation.x=Math.sin(t*2+s.phase)*0.4;
+  });
+
+  // 旗幟飄動
+  banners.forEach(b=>{ b.userData.flag.rotation.y=Math.sin(t*2+b.userData.phase)*0.25; });
+
+  // 大軍動態：行進 → 停滯 → 撤退
+  // 由 storyTime 決定整體推進
+  const sub=soldiers;
+  sub.forEach(s=>{
+    s.position.y=Math.sin(t*4+s.userData.phase)*0.3; // 行軍起伏
+  });
+
+  // 軍陣整體位移：依照分鏡推進
+  // shot 0-2: 逼近；shot 3-6: 停在城前；shot7+: 撤退
+  let targetZ;
+  if(shotIdx<=1) targetZ = 120 - storyTime*0.0; // 在 EST/ARMY 緩緩逼近
+  if(shotIdx<=1) targetZ = 95;
+  else if(shotIdx<=6) targetZ = 72;             // 抵達城下
+  else targetZ = 260;                            // 撤退遠去
+  army.position.z += (targetZ-army.position.z)*Math.min(dt*0.5,1);
+
+  // 撤退時士兵轉向（簡單以軍陣後退表現）
+  if(shotIdx>=7){
+    army.rotation.y += (0 - army.rotation.y)*dt; // 保持
+    sima.rotation.y = Math.PI; // 主將回首
+  }
+}
+
+/* ============================================================
+   主迴圈
+   ============================================================ */
+function loop(){
+  requestAnimationFrame(loop);
+  const dt=Math.min(clock.getDelta(),0.05);
+  storyTime+=dt;
+  animateScene(storyTime,dt);
+
+  if(state==='playing') updateCamera(dt);
+  else if(state==='free') updateFree(dt);
+
+  renderer.render(scene,camera);
+}
+
+/* ---------- 自由視角（環繞） ---------- */
+let freeAngle=0, freeR=160, freeY=45;
+let dragging=false,lastX=0,lastY=0;
+function updateFree(dt){
+  freeAngle+=dt*0.08;
+  camera.position.set(Math.sin(freeAngle)*freeR, freeY, Math.cos(freeAngle)*freeR);
+  camera.lookAt(0,WALL_H,WALL_Z);
+  camera.fov=42; camera.updateProjectionMatrix();
+}
+renderer.domElement.addEventListener('pointerdown',e=>{if(state==='free'){dragging=true;lastX=e.clientX;lastY=e.clientY;}});
+window.addEventListener('pointerup',()=>dragging=false);
+window.addEventListener('pointermove',e=>{
+  if(dragging&&state==='free'){
+    freeAngle-=(e.clientX-lastX)*0.005;
+    freeY=Math.max(8,Math.min(120,freeY-(e.clientY-lastY)*0.4));
+    lastX=e.clientX;lastY=e.clientY;
+  }
+});
+renderer.domElement.addEventListener('wheel',e=>{
+  if(state==='free'){freeR=Math.max(50,Math.min(300,freeR+e.deltaY*0.1));}
+},{passive:true});
+
+/* ============================================================
+   UI 綁定
+   ============================================================ */
+document.getElementById('playBtn').onclick=play;
+document.getElementById('replay').onclick=()=>{
+  document.getElementById('endcard').classList.remove('show');
+  army.position.z=120; army.rotation.y=0; sima.rotation.y=0; storyTime=0;
+  state='playing'; startShot(0);
+};
+document.getElementById('btnReplay').onclick=()=>{
+  document.getElementById('endcard').classList.remove('show');
+  army.position.z=120; army.rotation.y=0; sima.rotation.y=0;
+  state='playing'; startShot(0);
+};
+const pauseBtn=document.getElementById('btnPause');
+pauseBtn.onclick=()=>{
+  if(state==='playing'){state='paused';pauseBtn.textContent='▶ 繼續';}
+  else if(state==='paused'){state='playing';pauseBtn.textContent='❚❚ 暫停';}
+};
+const freeBtn=document.getElementById('btnFree');
+freeBtn.onclick=()=>{
+  if(state!=='free'){
+    state='free'; freeBtn.textContent='▶ 回到劇情';
+    hideSub(); shotInfoEl.classList.remove('show');
+    document.getElementById('endcard').classList.remove('show');
+  }else{
+    state='playing'; freeBtn.textContent='⊙ 自由視角';
+    startShot(shotIdx);
+  }
+};
+
+window.addEventListener('resize',()=>{
+  camera.aspect=W()/H(); camera.updateProjectionMatrix();
+  renderer.setSize(W(),H());
+});
+
+// 啟動
+document.getElementById('loading').style.display='none';
+clock.start();
+loop();
+</script>
+</body>
+</html>
