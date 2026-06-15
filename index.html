@@ -201,8 +201,12 @@ body::before{
 <div class="overlay" id="overlay">
   <div class="ov-card">
     <div class="ov-title">俄羅斯方塊</div>
-    <div class="ov-sub">支援鍵盤與觸控操作<br>← → 移動 · ↑ 旋轉 · 空白直落</div>
-    <button class="ov-btn primary" onclick="startGame()">開始遊戲</button><br>
+    <div class="ov-sub" id="ov-sub">支援鍵盤與觸控操作<br>← → 移動 · ↑ 旋轉 · 空白直落</div>
+    <div id="ov-continue" style="display:none;margin-bottom:6px;">
+      <button class="ov-btn primary" onclick="resumeGame()" style="width:100%;">繼續遊戲</button>
+      <div id="ov-continue-info" style="font-size:11px;color:rgba(255,255,255,0.35);margin:5px 0 2px;"></div>
+    </div>
+    <button class="ov-btn" id="ov-newgame-btn" onclick="startGame()">開始新遊戲</button><br>
     <button class="ov-btn" onclick="showLeaderboard()">查看排行榜</button>
   </div>
 </div>
@@ -274,6 +278,61 @@ let board, boardColors, score, level, lines, gameRunning, dropInterval, lastTime
 let particles = [];
 let flashRows = [];
 let flashTimer = 0;
+
+/* --- Save / Resume --- */
+const SAVE_KEY = 'tetris_save';
+let dropsSinceLastSave = 0;
+
+function saveState() {
+  if (!gameRunning) return;
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      board, boardColors, score, level, lines, dropInterval,
+      currentPiece, nextPiece, ts: Date.now()
+    }));
+  } catch(e) {}
+}
+
+function clearSave() {
+  localStorage.removeItem(SAVE_KEY);
+}
+
+function getSavedState() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch(e) { return null; }
+}
+
+function checkSavedGame() {
+  const s = getSavedState();
+  if (!s || s.score === 0) return;
+  const mins = Math.round((Date.now() - s.ts) / 60000);
+  const timeStr = mins < 1 ? '剛剛' : mins < 60 ? `${mins} 分鐘前` : `${Math.floor(mins/60)} 小時前`;
+  document.getElementById('ov-continue').style.display = 'block';
+  document.getElementById('ov-continue-info').textContent =
+    `分數 ${s.score.toLocaleString()} · 等級 ${s.level} · ${timeStr}`;
+  document.getElementById('ov-newgame-btn').textContent = '開始新遊戲';
+}
+
+function resumeGame() {
+  const s = getSavedState();
+  if (!s) { startGame(); return; }
+  cancelAnimationFrame(animId);
+  board = s.board;
+  boardColors = s.boardColors;
+  score = s.score; level = s.level; lines = s.lines;
+  dropInterval = s.dropInterval || Math.max(80, 800-(level-1)*70);
+  currentPiece = s.currentPiece;
+  nextPiece = s.nextPiece;
+  particles = []; flashRows = []; flashTimer = 0;
+  dropCounter = 0; lastTime = 0;
+  updateStats(); drawNext();
+  ['overlay','name-modal','lb-overlay'].forEach(id => document.getElementById(id).style.display='none');
+  gameRunning = true;
+  animId = requestAnimationFrame(update);
+}
 
 /* --- Particle system --- */
 function spawnParticles(row) {
@@ -473,6 +532,7 @@ function spawnPiece() {
 
 function endGame() {
   gameRunning = false; cancelAnimationFrame(animId);
+  clearSave();
   document.getElementById('final-score').textContent = score.toLocaleString();
   document.getElementById('final-sub').textContent = `等級 ${level} · 消除 ${lines} 行`;
   const saved = localStorage.getItem('tetris_name') || '';
@@ -494,6 +554,9 @@ function drop() {
       updateStats();
     }
     spawnPiece();
+    /* save every 3 pieces */
+    dropsSinceLastSave++;
+    if (dropsSinceLastSave >= 3) { saveState(); dropsSinceLastSave = 0; }
   }
 }
 function hardDrop() { while (!collide(board, currentPiece, 0, 1)) currentPiece.y++; drop(); }
@@ -515,8 +578,9 @@ function update(time=0) {
 
 function startGame() {
   cancelAnimationFrame(animId);
+  clearSave();
   createBoard(); particles = []; flashRows = []; flashTimer = 0;
-  score=0; level=1; lines=0; dropInterval=800; dropCounter=0; lastTime=0;
+  score=0; level=1; lines=0; dropInterval=800; dropCounter=0; lastTime=0; dropsSinceLastSave=0;
   updateStats(); nextPiece = randPiece(); spawnPiece();
   ['overlay','name-modal','lb-overlay'].forEach(id => document.getElementById(id).style.display='none');
   gameRunning = true; animId = requestAnimationFrame(update);
@@ -654,8 +718,15 @@ canvas.addEventListener('touchend', e => {
   if (Math.abs(dx)<12 && Math.abs(dy)<12 && gameRunning) tryRotate();
 }, {passive:false});
 
-/* init draw */
-createBoard(); drawBoard();
+/* save when leaving/hiding page */
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && gameRunning) saveState();
+});
+window.addEventListener('pagehide', () => { if (gameRunning) saveState(); });
+window.addEventListener('beforeunload', () => { if (gameRunning) saveState(); });
+
+/* init */
+createBoard(); drawBoard(); checkSavedGame();
 </script>
 </body>
 </html>
