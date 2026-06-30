@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi-Window Tetris</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:100%;height:100%;overflow:hidden;background:#05050c;font-family:monospace;}
+  #c{position:fixed;top:0;left:0;}
+  #hud{
+    position:fixed;left:12px;top:12px;z-index:10;color:#9fb3ff;
+    background:rgba(8,8,20,.6);padding:10px 14px;border-radius:8px;font-size:13px;line-height:1.6;
+    pointer-events:none;max-width:320px;
+  }
+  #hud b{color:#fff;}
+  #hud .role{color:#7fe0a0;}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">
+  <b>Multi-Window Tetris</b> <span class="role" id="role"></span><br>
+  <span id="stats">score 0 · lines 0</span><br>
+  <span style="opacity:.8">把分頁拉成獨立視窗,再開幾個一樣網址的視窗並排。<br>
+  每個視窗都是同一棋盤的取景窗,移動視窗就能看到不同部分。</span><br>
+  <span style="opacity:.7">← → 移動 · ↑ 旋轉 · ↓ 軟降 · 空白 硬降 · R 重開</span>
+</div>
+
+<script>
+// ===========================================================================
+// 多視窗管理:同網域多視窗共享「誰開著、各自螢幕位置」
+// ===========================================================================
+class WindowManager {
+  constructor() {
+    this.windows = []; this.count = 0; this.id = 0; this.winData = null; this.onChangeCb = null;
+    addEventListener('storage', (e) => {
+      if (e.key === 'mwt_windows') {
+        const w = JSON.parse(e.newValue || '[]');
+        if (w.length !== this.windows.length || w.some((x,i)=>!this.windows[i]||x.id!==this.windows[i].id)) {
+          this.windows = w; this.onChangeCb && this.onChangeCb();
+        } else { this.windows = w; }
+      }
+    });
+    addEventListener('beforeunload', () => {
+      const idx = this.windows.findIndex(w => w.id === this.id);
+      if (idx > -1) this.windows.splice(idx, 1);
+      localStorage.setItem('mwt_windows', JSON.stringify(this.windows));
+    });
+  }
+  init() {
+    this.windows = JSON.parse(localStorage.getItem('mwt_windows') || '[]');
+    this.count = parseInt(localStorage.getItem('mwt_count') || '0') + 1;
+    this.id = this.count;
+    this.winData = { id: this.id, shape: this.shape() };
+    this.windows.push(this.winData);
+    localStorage.setItem('mwt_count', this.count);
+    this.save();
+  }
+  shape() { return { x: window.screenX, y: window.screenY, w: window.innerWidth, h: window.innerHeight }; }
+  save() { localStorage.setItem('mwt_windows', JSON.stringify(this.windows)); }
+  update() {
+    const s = this.shape(), o = this.winData.shape;
+    if (s.x!==o.x||s.y!==o.y||s.w!==o.w||s.h!==o.h) {
+      this.winData.shape = s;
+      const idx = this.windows.findIndex(w => w.id === this.id);
+      if (idx > -1) this.windows[idx].shape = s;
+      this.save();
+    }
+  }
+  isHost() { return this.windows.length > 0 && this.id === Math.min(...this.windows.map(w => w.id)); }
+}
+
+// ===========================================================================
+// 俄羅斯方塊邏輯
+// ===========================================================================
+const COLS = 10, ROWS = 20, CELL = 34;
+const BOARD_W = COLS * CELL, BOARD_H = ROWS * CELL;
+
+const COLORS = ['#000', '#39d0ff', '#ffd23f', '#b06fff', '#5ad15a', '#ff5a5a', '#5a7bff', '#ff9f43'];
+const PIECES = {
+  I: { c: 1, m: [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]] },
+  O: { c: 2, m: [[1,1],[1,1]] },
+  T: { c: 3, m: [[0,1,0],[1,1,1],[0,0,0]] },
+  S: { c: 4, m: [[0,1,1],[1,1,0],[0,0,0]] },
+  Z: { c: 5, m: [[1,1,0],[0,1,1],[0,0,0]] },
+  J: { c: 6, m: [[1,0,0],[1,1,1],[0,0,0]] },
+  L: { c: 7, m: [[0,0,1],[1,1,1],[0,0,0]] },
+};
+const TYPES = Object.keys(PIECES);
+
+function rotateCW(m) {
+  const n = m.length;
+  const r = m.map(row => row.slice());
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) r[x][n-1-y] = m[y][x];
+  return r;
+}
+function pieceMatrix(type, rot) {
+  let m = PIECES[type].m;
+  for (let i = 0; i < ((rot % 4) + 4) % 4; i++) m = rotateCW(m);
+  return m;
+}
+function newBoard() { return Array.from({ length: ROWS }, () => new Array(COLS).fill(0)); }
+function randType() { return TYPES[Math.floor(Math.random() * TYPES.length)]; }
+
+function collides(board, type, rot, px, py) {
+  const m = pieceMatrix(type, rot);
+  for (let y = 0; y < m.length; y++) for (let x = 0; x < m.length; x++) {
+    if (!m[y][x]) continue;
+    const bx = px + x, by = py + y;
+    if (bx < 0 || bx >= COLS || by >= ROWS) return true;
+    if (by >= 0 && board[by][bx]) return true;
+  }
+  return false;
+}
+
+function spawnPiece() {
+  const type = randType();
+  return { type, rot: 0, x: Math.floor((COLS - pieceMatrix(type, 0).length) / 2), y: -1 };
+}
+
+function freshState(originX, originY) {
+  return {
+    board: newBoard(), piece: spawnPiece(), next: randType(),
+    score: 0, lines: 0, over: false,
+    originX, originY,                 // 棋盤左上角在「桌面螢幕座標」的位置
+    seq: 0,
+  };
+}
+
+// ===========================================================================
+// Host 端遊戲動作(只有 host 會改 state)
+// ===========================================================================
+function lockAndNext(st) {
+  const m = pieceMatrix(st.piece.type, st.piece.rot);
+  for (let y = 0; y < m.length; y++) for (let x = 0; x < m.length; x++) {
+    if (m[y][x]) {
+      const by = st.piece.y + y, bx = st.piece.x + x;
+      if (by >= 0) st.board[by][bx] = PIECES[st.piece.type].c;
+    }
+  }
+  // 消行
+  let cleared = 0;
+  for (let y = ROWS - 1; y >= 0; y--) {
+    if (st.board[y].every(v => v)) {
+      st.board.splice(y, 1);
+      st.board.unshift(new Array(COLS).fill(0));
+      cleared++; y++;
+    }
+  }
+  if (cleared) { st.lines += cleared; st.score += [0,100,300,500,800][cleared]; }
+  // 出新方塊
+  st.piece = { type: st.next, rot: 0,
+    x: Math.floor((COLS - pieceMatrix(st.next, 0).length) / 2), y: -1 };
+  st.next = randType();
+  if (collides(st.board, st.piece.type, st.piece.rot, st.piece.x, st.piece.y)) st.over = true;
+}
+
+function applyAction(st, action) {
+  if (st.over) { if (action === 'restart') return freshState(st.originX, st.originY); return st; }
+  const p = st.piece;
+  if (action === 'left'  && !collides(st.board, p.type, p.rot, p.x-1, p.y)) p.x--;
+  else if (action === 'right' && !collides(st.board, p.type, p.rot, p.x+1, p.y)) p.x++;
+  else if (action === 'down') { if (!collides(st.board, p.type, p.rot, p.x, p.y+1)) p.y++; else lockAndNext(st); }
+  else if (action === 'rotate') {
+    const nr = (p.rot + 1) % 4;
+    // 簡易踢牆
+    for (const dx of [0, -1, 1, -2, 2]) {
+      if (!collides(st.board, p.type, nr, p.x + dx, p.y)) { p.rot = nr; p.x += dx; break; }
+    }
+  }
+  else if (action === 'hard') {
+    while (!collides(st.board, p.type, p.rot, p.x, p.y+1)) p.y++;
+    lockAndNext(st);
+  }
+  else if (action === 'restart') return freshState(st.originX, st.originY);
+  return st;
+}
+
+function gravity(st) {
+  if (st.over) return st;
+  const p = st.piece;
+  if (!collides(st.board, p.type, p.rot, p.x, p.y+1)) p.y++;
+  else lockAndNext(st);
+  return st;
+}
+
+// ===========================================================================
+// 同步層
+// ===========================================================================
+let wm, state = null, canvas, ctx;
+let lastInputNonce = 0;
+
+function loadState() {
+  const raw = localStorage.getItem('mwt_state');
+  return raw ? JSON.parse(raw) : null;
+}
+function saveState() { state.seq++; localStorage.setItem('mwt_state', JSON.stringify(state)); }
+
+function sendAction(action) {
+  if (wm.isHost()) {
+    state = applyAction(state, action);
+    saveState();
+  } else {
+    // 寫入 input,host 端用 storage 事件接收
+    const payload = { nonce: (parseInt(localStorage.getItem('mwt_input_nonce') || '0')) + 1, action };
+    localStorage.setItem('mwt_input_nonce', payload.nonce);
+    localStorage.setItem('mwt_input', JSON.stringify(payload));
+  }
+}
+
+addEventListener('storage', (e) => {
+  if (e.key === 'mwt_state' && e.newValue) state = JSON.parse(e.newValue);
+  if (e.key === 'mwt_input' && e.newValue && wm.isHost()) {
+    const p = JSON.parse(e.newValue);
+    if (p.nonce !== lastInputNonce) {
+      lastInputNonce = p.nonce;
+      state = applyAction(state, p.action);
+      saveState();
+    }
+  }
+});
+
+// ===========================================================================
+// 輸入
+// ===========================================================================
+const KEYMAP = {
+  ArrowLeft: 'left', ArrowRight: 'right', ArrowDown: 'down', ArrowUp: 'rotate',
+  ' ': 'hard', r: 'restart', R: 'restart',
+};
+addEventListener('keydown', (e) => {
+  const a = KEYMAP[e.key];
+  if (a) { e.preventDefault(); sendAction(a); }
+});
+
+// ===========================================================================
+// 渲染:把棋盤畫在桌面空間,依本視窗的螢幕位置取景
+// ===========================================================================
+function roundRect(c, x, y, w, h, r) {
+  c.beginPath();
+  c.moveTo(x+r, y); c.arcTo(x+w, y, x+w, y+h, r); c.arcTo(x+w, y+h, x, y+h, r);
+  c.arcTo(x, y+h, x, y, r); c.arcTo(x, y, x+w, y, r); c.closePath();
+}
+
+function drawCell(gx, gy, colorIdx, ghost) {
+  const s = CELL;
+  if (ghost) {
+    ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 2;
+    roundRect(ctx, gx+3, gy+3, s-6, s-6, 5); ctx.stroke();
+    return;
+  }
+  ctx.fillStyle = COLORS[colorIdx];
+  roundRect(ctx, gx+2, gy+2, s-4, s-4, 6); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.18)';
+  roundRect(ctx, gx+2, gy+2, s-4, (s-4)*0.4, 6); ctx.fill();
+}
+
+function render() {
+  wm.update();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  if (canvas.width !== innerWidth*dpr || canvas.height !== innerHeight*dpr) {
+    canvas.width = innerWidth*dpr; canvas.height = innerHeight*dpr;
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, innerWidth, innerHeight);
+
+  if (state) {
+    // 棋盤左上角在本視窗畫布上的座標
+    const ox = state.originX - window.screenX;
+    const oy = state.originY - window.screenY;
+
+    // 棋盤外框 + 底
+    ctx.fillStyle = 'rgba(20,20,40,.55)';
+    roundRect(ctx, ox-6, oy-6, BOARD_W+12, BOARD_H+12, 10); ctx.fill();
+    ctx.strokeStyle = '#33406b'; ctx.lineWidth = 2;
+    roundRect(ctx, ox-6, oy-6, BOARD_W+12, BOARD_H+12, 10); ctx.stroke();
+
+    // 格線
+    ctx.strokeStyle = 'rgba(255,255,255,.04)'; ctx.lineWidth = 1;
+    for (let c = 0; c <= COLS; c++) { ctx.beginPath(); ctx.moveTo(ox+c*CELL, oy); ctx.lineTo(ox+c*CELL, oy+BOARD_H); ctx.stroke(); }
+    for (let r = 0; r <= ROWS; r++) { ctx.beginPath(); ctx.moveTo(ox, oy+r*CELL); ctx.lineTo(ox+BOARD_W, oy+r*CELL); ctx.stroke(); }
+
+    // 已落定的方塊
+    for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+      if (state.board[y][x]) drawCell(ox + x*CELL, oy + y*CELL, state.board[y][x]);
+    }
+
+    // ghost(預測落點)
+    const p = state.piece;
+    if (p && !state.over) {
+      let gy = p.y;
+      while (!collides(state.board, p.type, p.rot, p.x, gy+1)) gy++;
+      const m = pieceMatrix(p.type, p.rot);
+      for (let yy = 0; yy < m.length; yy++) for (let xx = 0; xx < m.length; xx++)
+        if (m[yy][xx] && gy+yy >= 0) drawCell(ox + (p.x+xx)*CELL, oy + (gy+yy)*CELL, 0, true);
+      // 目前方塊
+      for (let yy = 0; yy < m.length; yy++) for (let xx = 0; xx < m.length; xx++)
+        if (m[yy][xx] && p.y+yy >= 0) drawCell(ox + (p.x+xx)*CELL, oy + (p.y+yy)*CELL, PIECES[p.type].c);
+    }
+
+    // Game Over 字樣(畫在棋盤中央)
+    if (state.over) {
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 30px monospace'; ctx.textAlign = 'center';
+      ctx.fillText('GAME OVER', ox + BOARD_W/2, oy + BOARD_H/2 - 10);
+      ctx.font = '16px monospace';
+      ctx.fillText('按 R 重新開始', ox + BOARD_W/2, oy + BOARD_H/2 + 24);
+      ctx.textAlign = 'left';
+    }
+
+    document.getElementById('stats').textContent = `score ${state.score} · lines ${state.lines}`;
+  }
+
+  document.getElementById('role').textContent = wm.isHost() ? '[host]' : '[viewer]';
+  requestAnimationFrame(render);
+}
+
+// ===========================================================================
+// 啟動
+// ===========================================================================
+function start() {
+  canvas = document.getElementById('c');
+  ctx = canvas.getContext('2d');
+  wm = new WindowManager();
+  wm.init();
+
+  // 沒有遊戲狀態(我是第一個視窗)→ 建立,棋盤置於本視窗中央的桌面座標
+  state = loadState();
+  if (!state) {
+    const ox = window.screenX + (innerWidth - BOARD_W) / 2;
+    const oy = window.screenY + (innerHeight - BOARD_H) / 2;
+    state = freshState(ox, oy);
+    if (wm.isHost()) saveState();
+  }
+
+  // 重力:每個視窗都跑 interval,但只有 host 真的推進並寫回
+  setInterval(() => {
+    if (!wm.isHost() || !state) return;
+    const speed = Math.max(120, 800 - state.lines * 20);
+    const now = tickClock();
+    if (now - lastTick >= speed) { lastTick = now; state = gravity(state); saveState(); }
+  }, 40);
+
+  render();
+}
+
+// 用累加器代替 Date.now()(環境限制),host 端自行計時
+let lastTick = 0, _clock = 0;
+function tickClock() { _clock += 40; return _clock; }
+
+try { start(); }
+catch (err) {
+  document.getElementById('hud').innerHTML = '初始化失敗:' + err.message + '<br>請用 http(s) 開啟。';
+}
+</script>
+</body>
+</html>
