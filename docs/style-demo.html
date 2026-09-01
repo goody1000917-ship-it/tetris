@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>手感新粗獷風 · 示範頁</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&display=swap">
+<style>
+/* ============================================================
+   設計代幣 —— 詳見 docs/style-guide-playful-neobrutalism.md
+   ============================================================ */
+:root {
+  color-scheme: light;
+  --paper: #fff4dd;
+  --card:  #fffdf7;
+  --ink:   #26201a;
+  --ink-2: #5c5347;
+  --ink-3: #877b6b;
+  --accent: #ff5c2b; --accent-hover: #ee4518; --on-accent: var(--card);
+  --sun:    #ffd84d; --sun-hover:    #ffe070; --on-sun:    var(--ink);
+  --rose:   #ffb9cc; --on-rose: var(--ink);
+  --sky:    #a5dcff; --on-sky:  var(--ink);
+  --mint:   #b9e6a6; --on-mint: var(--ink);
+  --dot-ink: #26201a1a;
+  --shadow-ink: var(--ink);
+  --border: 2px solid var(--ink);
+  --shadow:    4px 4px 0 var(--shadow-ink);
+  --shadow-sm: 3px 3px 0 var(--shadow-ink);
+  --radius: 14px;
+  --font-display: "Baloo 2", "Arial Rounded MT Bold", system-ui, sans-serif;
+  --font-body: system-ui, -apple-system, "Segoe UI", "Noto Sans TC", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: oklch(18% .012 70);
+  --card:  oklch(24% .014 70);
+  --ink:   oklch(93% .025 80);
+  --ink-2: oklch(76% .025 75);
+  --ink-3: oklch(66% .024 72);
+  --accent: oklch(67% .2 38); --accent-hover: oklch(62% .2 38); --on-accent: oklch(20% .03 38);
+  --sun:    oklch(75% .135 82); --sun-hover: oklch(79% .14 82); --on-sun: oklch(22% .04 82);
+  --rose:   oklch(70% .12 355); --on-rose: oklch(20% .03 350);
+  --sky:    oklch(71% .095 232); --on-sky: oklch(20% .03 235);
+  --mint:   oklch(72% .11 145); --on-mint: oklch(20% .04 145);
+  --dot-ink: #f6e8cf14;
+  --shadow-ink: oklch(8% .005 70);
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+.page { max-width: 880px; margin: 0 auto; padding: 0 24px 72px; }
+
+/* ---- Masthead ---- */
+.masthead { display: flex; align-items: center; gap: 16px; padding: 34px 0 4px; }
+.masthead-badge {
+  width: 52px; height: 52px; flex: none;
+  display: grid; place-items: center;
+  font-size: 26px;
+  background: var(--sun);
+  border: var(--border); border-radius: 50%;
+  box-shadow: var(--shadow-sm);
+  transform: rotate(-6deg);
+  transition: transform .2s cubic-bezier(.34,1.56,.64,1);
+}
+.masthead-badge:hover { transform: rotate(4deg) scale(1.06); }
+.masthead-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(28px, 4.5vw, 36px);
+  font-weight: 800; line-height: 1.05; letter-spacing: -.01em;
+}
+.masthead-sub { margin: 2px 0 0; font-family: var(--font-mono); font-size: 12px; color: var(--ink-3); }
+.masthead-side { margin-left: auto; }
+
+.theme-toggle {
+  border: var(--border); border-radius: 999px;
+  background: var(--card); color: var(--ink);
+  box-shadow: var(--shadow-sm);
+  font-family: var(--font-display); font-weight: 700; font-size: 14px;
+  padding: 8px 14px; cursor: pointer;
+  transition: transform .1s, box-shadow .1s;
+}
+.theme-toggle:hover  { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 var(--shadow-ink); }
+.theme-toggle:active { transform: translate(3px,3px);   box-shadow: 0 0 0 var(--shadow-ink); }
+
+/* ---- Hero 卡片：點陣紙紋 + 微旋轉 + 大陰影 ---- */
+.hero { padding-top: 22px; }
+.hero-card {
+  background: var(--card);
+  background-image: radial-gradient(var(--dot-ink) 1.5px, transparent 1.5px);
+  background-size: 18px 18px;
+  border: var(--border); border-radius: var(--radius);
+  box-shadow: 6px 6px 0 var(--shadow-ink);
+  padding: 26px 30px 30px;
+  transform: rotate(-.4deg);
+}
+.hero-label {
+  font-family: var(--font-mono); font-size: 12px;
+  letter-spacing: .08em; text-transform: uppercase;
+  color: var(--ink-3); margin: 0 0 10px;
+}
+@keyframes pop-in { from { opacity: 0; transform: scale(.85) rotate(-1.2deg); } }
+.hero-figure {
+  display: inline-block;
+  font-family: var(--font-display);
+  font-size: clamp(40px, 7.5vw, 68px);
+  font-weight: 800; line-height: 1.05; letter-spacing: -.02em;
+  background: var(--sun); color: var(--on-sun);
+  border-radius: 10px; padding: 0 16px 4px;
+  transform: rotate(-1.2deg);
+  animation: .5s cubic-bezier(.34,1.56,.64,1) both pop-in;
+}
+.hero-sub { margin: 12px 0 0; color: var(--ink-2); }
+
+/* ---- 統計格：糖果色 + 交錯旋轉 ---- */
+.stat-row {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 18px; margin-top: 34px;
+}
+.stat-tile {
+  border: var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 14px 18px 16px;
+  transition: transform .2s cubic-bezier(.34,1.56,.64,1);
+}
+.stat-tile--rose { background: var(--rose); color: var(--on-rose); transform: rotate(-1deg); }
+.stat-tile--sky  { background: var(--sky);  color: var(--on-sky);  transform: rotate(.7deg); }
+.stat-tile--sun  { background: var(--sun);  color: var(--on-sun);  transform: rotate(-.6deg); }
+.stat-tile:hover { transform: rotate(0) scale(1.03); }
+.stat-value { font-family: var(--font-display); font-size: clamp(26px, 4vw, 38px); font-weight: 800; line-height: 1.1; }
+.stat-label { font-family: var(--font-mono); font-size: 12px; opacity: .75; }
+
+/* ---- Section 標題 ---- */
+.section { margin-top: 44px; }
+.section-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 18px; }
+.section-head h2 { margin: 0; font-family: var(--font-display); font-size: 22px; font-weight: 800; }
+.section-sub { margin: 0; font-family: var(--font-mono); font-size: 12px; color: var(--ink-3); }
+
+/* ---- 按鈕家族 ---- */
+.btn-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  border: var(--border); border-radius: 999px;
+  min-height: 40px; padding: 8px 16px;
+  background: var(--card); color: var(--ink);
+  box-shadow: var(--shadow-sm);
+  font-family: var(--font-display); font-weight: 700; font-size: 14px; line-height: 1.2;
+  cursor: pointer;
+  transition: transform .1s, box-shadow .1s, background .15s;
+}
+.btn--accent { background: var(--accent); color: var(--on-accent); border-radius: 10px; font-weight: 800; }
+.btn--accent:hover { background: var(--accent-hover); }
+.btn--sun { background: var(--sun); color: var(--on-sun); }
+.btn--sun:hover { background: var(--sun-hover); }
+.btn--mint { background: var(--mint); color: var(--on-mint); }
+.btn:hover  { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 var(--shadow-ink); }
+.btn:active { transform: translate(3px,3px);   box-shadow: 0 0 0 var(--shadow-ink); }
+
+/* ---- 對話泡泡列表 ---- */
+.log-item { display: flex; gap: 14px; margin-bottom: 16px; }
+.log-avatar {
+  width: 42px; height: 42px; flex: none;
+  display: grid; place-items: center; font-size: 20px;
+  background: var(--sky);
+  border: var(--border); border-radius: 50%;
+  box-shadow: 2px 2px 0 var(--shadow-ink);
+}
+.log-bubble {
+  position: relative; flex: 1; min-width: 0;
+  background: var(--card);
+  border: var(--border); border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 14px 18px;
+}
+.log-bubble::before {
+  content: ""; position: absolute; top: 18px; left: -8px;
+  width: 13px; height: 13px;
+  background: var(--card);
+  border-left: var(--border); border-bottom: var(--border);
+  transform: rotate(45deg);
+}
+.log-time { font-family: var(--font-mono); font-size: 12px; color: var(--ink-3); }
+.log-text { margin: 4px 0 0; }
+
+/* ---- Footer ---- */
+.site-footer {
+  margin-top: 56px; padding-top: 18px;
+  border-top: var(--border);
+  font-family: var(--font-mono); font-size: 12px; color: var(--ink-3);
+}
+
+@media (max-width: 640px) {
+  .page { padding: 0 16px 56px; }
+  .stat-row { gap: 12px; }
+  .stat-tile { padding: 10px 12px 12px; }
+  .hero-card { padding: 20px 18px 22px; }
+  .section-head { flex-direction: column; gap: 4px; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="masthead">
+    <div class="masthead-badge">🧱</div>
+    <div>
+      <h1 class="masthead-title">方塊研究所</h1>
+      <p class="masthead-sub">playful neo-brutalism demo</p>
+    </div>
+    <div class="masthead-side">
+      <button class="theme-toggle" id="themeToggle" type="button">🌗 切換主題</button>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-card">
+      <p class="hero-label">本週最高分</p>
+      <div class="hero-figure">128,400 分</div>
+      <p class="hero-sub">距離上一次破紀錄已經 3 天 —— 該練 T-spin 了。</p>
+    </div>
+  </section>
+
+  <div class="stat-row">
+    <div class="stat-tile stat-tile--rose">
+      <div class="stat-value">49</div>
+      <div class="stat-label">場次</div>
+    </div>
+    <div class="stat-tile stat-tile--sky">
+      <div class="stat-value">7.2</div>
+      <div class="stat-label">平均消行 / 分鐘</div>
+    </div>
+    <div class="stat-tile stat-tile--sun">
+      <div class="stat-value">67</div>
+      <div class="stat-label">最長連擊</div>
+    </div>
+  </div>
+
+  <section class="section">
+    <div class="section-head">
+      <h2>按鈕家族</h2>
+      <p class="section-sub">hover 浮起、按下時陷入紙面</p>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn--accent">▶ 開始遊戲</button>
+      <button class="btn btn--sun">⏳ 續玩存檔</button>
+      <button class="btn btn--mint">🏆 排行榜</button>
+      <button class="btn">⚙️ 設定</button>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-head">
+      <h2>對戰紀錄</h2>
+      <p class="section-sub">speech-bubble list</p>
+    </div>
+    <div class="log-item">
+      <div class="log-avatar">🎉</div>
+      <div class="log-bubble">
+        <span class="log-time">2 小時前</span>
+        <p class="log-text">四行消除！Tetris ×2，得到 1,200 分。</p>
+      </div>
+    </div>
+    <div class="log-item">
+      <div class="log-avatar">😅</div>
+      <div class="log-bubble">
+        <span class="log-time">昨天</span>
+        <p class="log-text">又把 I 型長條放歪了……下次一定。</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    風格來源分析：docs/style-guide-playful-neobrutalism.md
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  if (matchMedia("(prefers-color-scheme: dark)").matches) root.dataset.theme = "dark";
+  document.getElementById("themeToggle").addEventListener("click", function () {
+    root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+  });
+})();
+</script>
+</body>
+</html>
