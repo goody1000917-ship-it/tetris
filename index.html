@@ -4,14 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>俄羅斯方塊</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23060612'/%3E%3Crect x='4' y='6' width='8' height='8' rx='1.5' fill='%23C77DFF'/%3E%3Crect x='12' y='6' width='8' height='8' rx='1.5' fill='%23C77DFF'/%3E%3Crect x='20' y='6' width='8' height='8' rx='1.5' fill='%23C77DFF'/%3E%3Crect x='12' y='14' width='8' height='8' rx='1.5' fill='%23C77DFF'/%3E%3Crect x='4' y='22' width='8' height='6' rx='1.5' fill='%2300C9FF'/%3E%3Crect x='20' y='22' width='8' height='6' rx='1.5' fill='%23FFD93D'/%3E%3C/svg%3E">
+<!-- leaderboard library: pinned + integrity-checked, and deferred so the game never waits for (or dies with) the CDN -->
+<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1/dist/umd/supabase.js"
+        integrity="sha384-K1nraABOP/zFehpLIUksXebbs7jMpB8gYMlb+uhVKZcWT/9Vkq1+qhv6ndC+1Yuz" crossorigin="anonymous"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 body{
   background:#060612;
   display:flex;flex-direction:column;align-items:center;
   min-height:100dvh;font-family:monospace;
-  overflow:hidden;touch-action:none;user-select:none;
+  overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
 }
 body::before{
   content:'';position:fixed;inset:0;
@@ -150,6 +153,8 @@ body::before{
   font-family:monospace;outline:none;text-align:center;margin-bottom:12px;
 }
 .name-input:focus{border-color:rgba(140,120,255,0.6);box-shadow:0 0 0 3px rgba(140,120,255,0.12);}
+.submit-msg{font-size:12px;color:#FF9A9A;min-height:1.4em;margin:-4px 0 8px;line-height:1.4;}
+.last-result{font-size:12px;color:rgba(255,217,61,0.8);margin:-6px 0 12px;}
 .btn-row{display:flex;gap:8px;justify-content:center;}
 
 /* Leaderboard */
@@ -178,6 +183,10 @@ body::before{
 .lb-footer{padding:10px;border-top:.5px solid rgba(255,255,255,0.08);flex-shrink:0;}
 .lb-close{width:100%;}.lb-loading{text-align:center;color:rgba(255,255,255,0.35);padding:24px;font-size:13px;}
 .lb-my-row td{background:rgba(140,120,255,0.08)!important;}
+.lb-table td:nth-child(2){overflow-wrap:anywhere;word-break:break-word;}
+.lb-device{display:flex;justify-content:center;gap:14px;margin-bottom:6px;}
+.lb-link{background:none;border:none;color:rgba(255,255,255,0.45);font-size:11px;font-family:monospace;cursor:pointer;padding:4px;}
+.lb-link:active{color:#fff;}
 
 /* Special piece badge */
 .special-toast{
@@ -237,6 +246,7 @@ body::before{
   <div class="ov-card">
     <div class="ov-title">俄羅斯方塊</div>
     <div class="ov-sub">支援鍵盤與觸控 · 含特殊方塊</div>
+    <div class="last-result" id="last-result" style="display:none"></div>
     <div id="resume-section" style="display:none;margin-bottom:4px;">
       <button class="ov-btn resume" onclick="resumeGame()">▶ 繼續遊戲</button>
       <div class="resume-info" id="resume-info"></div>
@@ -253,6 +263,7 @@ body::before{
     <div class="score-big" id="final-score">0</div>
     <div class="score-sub" id="final-sub"></div>
     <input class="name-input" id="player-name" type="text" placeholder="輸入你的名字" maxlength="12" autocomplete="off">
+    <div class="submit-msg" id="submit-msg"></div>
     <div class="btn-row">
       <button class="ov-btn primary" onclick="submitScore()">上傳分數</button>
       <button class="ov-btn" onclick="skipScore()">跳過</button>
@@ -265,14 +276,26 @@ body::before{
   <div class="lb-card">
     <div class="lb-header"><h2>🏆 排行榜</h2><p id="lb-updated"></p></div>
     <div class="lb-body"><div id="lb-content"><div class="lb-loading">載入中...</div></div></div>
-    <div class="lb-footer"><button class="ov-btn lb-close" onclick="closeLB()">關閉</button></div>
+    <div class="lb-footer">
+      <div class="lb-device"><button class="lb-link" onclick="showDeviceCode()">🔑 我的裝置碼</button><button class="lb-link" onclick="importDeviceCode()">📲 換裝置</button></div>
+      <button class="ov-btn lb-close" onclick="closeLB()">關閉</button>
+    </div>
   </div>
 </div>
 
 <script>
 const SUPABASE_URL = 'https://uvbvxywapuscfrfcmlaw.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_6mq88BDCaddDgSymY38Xvw_msebYgTY';
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+/* created on first use: if the CDN is slow or blocked, only the leaderboard is affected */
+let _sb=null;
+function getSb(){
+  if(!_sb && window.supabase && window.supabase.createClient) _sb=window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  return _sb;
+}
+/* localStorage can throw (private mode, storage full) — never let that break the game */
+function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+function lsDel(k){ try{ localStorage.removeItem(k); }catch(e){} }
 
 const canvas = document.getElementById('tetris');
 const ctx = canvas.getContext('2d');
@@ -291,16 +314,18 @@ function resize() {
 resize(); window.addEventListener('resize', () => { resize(); drawBoard(); });
 
 /* ===== PIECES ===== */
-/* Standard 7 tetrominos + 3 special pentominoes */
+/* Standard 7 tetrominos + 3 special pentominoes.
+   Every shape sits in a square SRS box (I 4x4, O 2x2, the rest 3x3) so rotating the box
+   turns the piece about its centre — that is what the SRS kick tables below assume. */
 const PIECE_DEFS = [
-  /* I */  { s:[[1,1,1,1]], c:'#00C9FF', g:'rgba(0,201,255,',   k:'I',      label:null },
+  /* I */  { s:[[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]], c:'#00C9FF', g:'rgba(0,201,255,', k:'I', label:null },
   /* O */  { s:[[1,1],[1,1]], c:'#FFD93D', g:'rgba(255,217,61,', k:'O',      label:null },
-  /* T */  { s:[[0,1,0],[1,1,1]], c:'#C77DFF', g:'rgba(199,125,255,', k:'JLSTZ', label:null },
-  /* L */  { s:[[1,0],[1,0],[1,1]], c:'#FF9A3C', g:'rgba(255,154,60,', k:'JLSTZ', label:null },
-  /* J */  { s:[[0,1],[0,1],[1,1]], c:'#4D96FF', g:'rgba(77,150,255,', k:'JLSTZ', label:null },
-  /* S */  { s:[[0,1,1],[1,1,0]], c:'#6BCB77', g:'rgba(107,203,119,', k:'JLSTZ', label:null },
-  /* Z */  { s:[[1,1,0],[0,1,1]], c:'#FF6B6B', g:'rgba(255,107,107,', k:'JLSTZ', label:null },
-  /* U-pentomino */ { s:[[1,0,1],[1,1,1]], c:'#FF61D8', g:'rgba(255,97,216,', k:'JLSTZ', label:'✦ U型特殊方塊！', rare:true },
+  /* T */  { s:[[0,1,0],[1,1,1],[0,0,0]], c:'#C77DFF', g:'rgba(199,125,255,', k:'JLSTZ', label:null },
+  /* L */  { s:[[0,0,1],[1,1,1],[0,0,0]], c:'#FF9A3C', g:'rgba(255,154,60,', k:'JLSTZ', label:null },
+  /* J */  { s:[[1,0,0],[1,1,1],[0,0,0]], c:'#4D96FF', g:'rgba(77,150,255,', k:'JLSTZ', label:null },
+  /* S */  { s:[[0,1,1],[1,1,0],[0,0,0]], c:'#6BCB77', g:'rgba(107,203,119,', k:'JLSTZ', label:null },
+  /* Z */  { s:[[1,1,0],[0,1,1],[0,0,0]], c:'#FF6B6B', g:'rgba(255,107,107,', k:'JLSTZ', label:null },
+  /* U-pentomino */ { s:[[1,0,1],[1,1,1],[0,0,0]], c:'#FF61D8', g:'rgba(255,97,216,', k:'JLSTZ', label:'✦ U型特殊方塊！', rare:true },
   /* +-pentomino */ { s:[[0,1,0],[1,1,1],[0,1,0]], c:'#00FFD4', g:'rgba(0,255,212,', k:'JLSTZ', label:'✦ 十字特殊方塊！', rare:true },
   /* F-pentomino */ { s:[[0,1,1],[1,1,0],[0,1,0]], c:'#FFAA00', g:'rgba(255,170,0,', k:'JLSTZ', label:'✦ F型特殊方塊！', rare:true },
 ];
@@ -316,15 +341,15 @@ const KICKS_JLSTZ = {
   '3>2':[[0,0],[-1,0],[-1,1],[0,-2],[-1,-2]],
   '0>3':[[0,0],[1,0],[1,-1],[0,2],[1,2]],
 };
-const KICKS_I = {
-  '0>1':[[0,0],[-2,0],[1,0],[-2,-1],[1,2]],
-  '1>2':[[0,0],[-1,0],[2,0],[-1,2],[2,-1]],
-  '2>3':[[0,0],[2,0],[-1,0],[2,1],[-1,-2]],
-  '3>0':[[0,0],[1,0],[-2,0],[1,-2],[-2,1]],
-  '1>0':[[0,0],[2,0],[-1,0],[2,1],[-1,-2]],
-  '2>1':[[0,0],[1,0],[-2,0],[1,-2],[-2,1]],
-  '3>2':[[0,0],[-2,0],[1,0],[-2,-1],[1,2]],
-  '0>3':[[0,0],[-1,0],[2,0],[-1,2],[2,-1]],
+const KICKS_I = {   /* SRS I table with dy flipped for y-down, same as the JLSTZ table above */
+  '0>1':[[0,0],[-2,0],[1,0],[-2,1],[1,-2]],
+  '1>2':[[0,0],[-1,0],[2,0],[-1,-2],[2,1]],
+  '2>3':[[0,0],[2,0],[-1,0],[2,-1],[-1,2]],
+  '3>0':[[0,0],[1,0],[-2,0],[1,2],[-2,-1]],
+  '1>0':[[0,0],[2,0],[-1,0],[2,-1],[-1,2]],
+  '2>1':[[0,0],[1,0],[-2,0],[1,2],[-2,-1]],
+  '3>2':[[0,0],[-2,0],[1,0],[-2,1],[1,-2]],
+  '0>3':[[0,0],[-1,0],[2,0],[-1,-2],[2,1]],
 };
 
 function getKicks(piece, fromState, toState) {
@@ -345,11 +370,11 @@ function randPiece() {
   else pool = PIECE_DEFS.filter(p => !p.rare);
   const def = pool[Math.floor(Math.random() * pool.length)];
   const shape = def.s.map(r => [...r]);
-  const piece = {
+  const firstRow = shape.findIndex(row => row.some(Boolean));   // I: its filled row lands on row 0
+  return {
     shape, color:def.c, glow:def.g, kick:def.k, rotState:0, label:def.label,
-    x: Math.floor(COLS/2) - Math.floor(shape[0].length/2), y:0
+    x: Math.floor((COLS - shape[0].length) / 2), y: -firstRow
   };
-  return piece;
 }
 
 /* ===== GAME STATE ===== */
@@ -377,17 +402,16 @@ function merge(p) {
   }));
 }
 function clearLines() {
-  let cleared = 0;
-  for (let r=ROWS-1;r>=0;r--) {
-    if (board[r].every(c=>c)) {
-      spawnParticles(r);
-      board.splice(r,1); board.unshift(Array(COLS).fill(0));
-      boardColors.splice(r,1); boardColors.unshift(Array(COLS).fill(null));
-      cleared++; r++;
-    }
+  const full=[];
+  for (let r=0;r<ROWS;r++) if (board[r].every(Boolean)) full.push(r);
+  full.forEach(spawnParticles);            // before removal, so the colours are still there
+  /* top-down: each splice+unshift only shifts rows above r, so the lower indices stay valid */
+  for (const r of full) {
+    board.splice(r,1); board.unshift(Array(COLS).fill(0));
+    boardColors.splice(r,1); boardColors.unshift(Array(COLS).fill(null));
   }
-  if (cleared) { flashRows=Array.from({length:cleared},(_,i)=>ROWS-1-i); flashTimer=8; }
-  return cleared;
+  if (full.length) { flashRows=full.slice(); flashTimer=8; }
+  return full.length;
 }
 
 /* ===== PARTICLES ===== */
@@ -408,7 +432,7 @@ function updateParticles() {
 
 /* ===== BACKGROUND FX LAYER — effects in the empty side gutters ===== */
 const bgCanvas=document.getElementById('bg-fx'), bgCtx=bgCanvas.getContext('2d');
-let bgParticles=[], bgFrame=0;
+let bgParticles=[], bgFrame=0, fwOnTop=false, fwPending=0;
 function sizeBg(){ bgCanvas.width=window.innerWidth; bgCanvas.height=window.innerHeight; }
 sizeBg(); window.addEventListener('resize',sizeBg);
 /* the two empty regions flanking the centered play area (viewport coords) */
@@ -455,6 +479,8 @@ function bgLoop(){
     if(p.glow) bgCtx.shadowBlur=0;
   });
   bgCtx.globalAlpha=1;
+  /* fireworks were lifted above the board (narrow phone) — drop back once the last spark is gone */
+  if(fwOnTop && !fwPending && !bgParticles.some(p=>p.g>0)){ fwOnTop=false; bgCanvas.style.zIndex=''; }
   requestAnimationFrame(bgLoop);
 }
 bgLoop();
@@ -466,17 +492,24 @@ const FW_PALETTES=[
   ['#00C9FF','#4D96FF','#C77DFF','#FF61D8'],        // 2000: cool rainbow
   ['#6BCB77','#00FFD4','#FFD93D','#FF61D8','#FF6B6B'], // 3000: full spectrum
 ];
-/* fire bursts across BOTH side gutters; intensity grows with milestone */
+/* fire bursts across BOTH side gutters; intensity grows with milestone.
+   On phones the gutters are too thin (or missing), so the layer is lifted above the board
+   for the celebration and the bursts go in the top-bar and button bands instead. */
 function celebrate(m){
   const tier=Math.min(m,FW_PALETTES.length)-1;
   const colors=FW_PALETTES[tier<0?0:tier];
   const bursts=Math.min(3+m,12);           // more bursts the higher you go
+  const gs=gutters();
+  const wide=gs.length===2 && gs.every(g=>g.x1-g.x0>=60);
+  if(!wide){ fwOnTop=true; bgCanvas.style.zIndex='5'; }
   for(let b=0;b<bursts;b++){
+    fwPending++;
     setTimeout(()=>{
-      const gs=gutters(); if(!gs.length) return;
-      const g=gs[b%gs.length];             // alternate left / right
-      const cx=inG(g);
-      const cy=bgCanvas.height*(0.15+Math.random()*0.5);
+      fwPending--;
+      const W=bgCanvas.width, H=bgCanvas.height;
+      let cx, cy;
+      if(wide){ const g=gutters()[b%2]||gs[b%2]; cx=inG(g); cy=H*(0.15+Math.random()*0.5); }
+      else { cx=W*(0.12+Math.random()*0.76); cy=H*(b%2 ? 0.80+Math.random()*0.12 : 0.04+Math.random()*0.14); }
       bgFirework(cx,cy,colors);
     }, b*180);
   }
@@ -587,7 +620,12 @@ function drawBoard() {
 function drawNext() {
   nctx.clearRect(0,0,64,64);
   const s=nextPiece.shape, sz=11;
-  const ox=Math.floor((6-s[0].length)/2), oy=Math.floor((6-s.length)/2);
+  /* centre on the filled cells, not the (partly empty) SRS box */
+  const rows=[], cols=[];
+  s.forEach((row,r)=>row.forEach((v,c)=>{ if(v){ rows.push(r); cols.push(c); } }));
+  const r0=Math.min(...rows), c0=Math.min(...cols);
+  const h=Math.max(...rows)-r0+1, w=Math.max(...cols)-c0+1;
+  const ox=(64-w*sz)/2/sz-c0, oy=(64-h*sz)/2/sz-r0;
   s.forEach((row,r)=>row.forEach((v,c)=>{
     if(v) drawBlock(nctx,ox+c,oy+r,nextPiece.color,nextPiece.glow,sz);
   }));
@@ -602,6 +640,9 @@ function updateStats() {
 /* ===== GAME LOOP ===== */
 function spawnPiece() {
   currentPiece = nextPiece || randPiece();
+  /* guideline "drop one row on spawn" for the I, when there is room: a spawn rotation then
+     shows all 4 cells instead of hiding one above the board */
+  if(currentPiece.kick==='I' && !collide(board,currentPiece) && !collide(board,currentPiece,0,1)) currentPiece.y++;
   nextPiece = randPiece(); drawNext();
   if(currentPiece.label){ showSpecialToast(currentPiece.label); playSpecial(); }
   if(collide(board,currentPiece)) endGame();
@@ -616,10 +657,21 @@ function showSpecialToast(msg) {
 }
 
 function endGame() {
-  gameRunning=false; cancelAnimationFrame(animId); clearSave(); playGameOver();
+  gameRunning=false; cancelAnimationFrame(animId); stopAllRepeat(); clearSave(); playGameOver();
+  pausedGame=false;
+  /* keep the result until it is uploaded or skipped — a reload at the name prompt won't lose it */
+  lsSet(PENDING_KEY, JSON.stringify({score,level,lines}));
+  showNameModal();
+}
+function showNameModal() {
+  uploadGen++; submitting=false;            // a reply for an earlier window must not touch this one
+  const lr=document.getElementById('last-result');
+  lr.textContent=`上一局 ${score.toLocaleString()} 分 · 等級 ${level} · 消除 ${lines} 行`;
+  lr.style.display='block';
   document.getElementById('final-score').textContent=score.toLocaleString();
   document.getElementById('final-sub').textContent=`等級 ${level} · 消除 ${lines} 行`;
-  document.getElementById('player-name').value=localStorage.getItem('tetris_name')||'';
+  document.getElementById('player-name').value=lsGet('tetris_name')||'';
+  document.getElementById('submit-msg').textContent='';
   document.getElementById('name-modal').style.display='flex';
   setTimeout(()=>document.getElementById('player-name').focus(),100);
 }
@@ -627,6 +679,9 @@ function endGame() {
 function drop() {
   if(!collide(board,currentPiece,0,1)){ currentPiece.y++; }
   else {
+    /* cells locking above the board: merge() skips them, so remember them first */
+    const over=[];
+    currentPiece.shape.forEach((row,r)=>row.forEach((v,cc)=>{ if(v&&currentPiece.y+r<0) over.push([currentPiece.x+cc,currentPiece.y+r]); }));
     merge(currentPiece);
     const c=clearLines();
     if(c) {
@@ -635,11 +690,17 @@ function drop() {
       dropInterval=Math.max(80,800-(level-1)*70); updateStats();
       playClear(c); checkMilestone();
     } else { playLock(); }
+    /* lock-out only if a cell is still above the board after the rows below it cleared */
+    if(over.some(([,y])=>y+c<0)){ endGame(); return; }
+    over.forEach(([x,y])=>{ board[y+c][x]=1; boardColors[y+c][x]=currentPiece.color; });
     spawnPiece();
     if(++dropsSinceLastSave>=1){ saveState(); dropsSinceLastSave=0; }
   }
 }
 function hardDrop(){ playDrop(); while(!collide(board,currentPiece,0,1)) currentPiece.y++; drop(); }
+/* ↓ only moves down; it never locks, so holding it can't slam a piece into place by accident.
+   Gravity (or 直落) does the locking. */
+function softDrop(){ if(!collide(board,currentPiece,0,1)){ currentPiece.y++; dropCounter=0; } }
 function move(dir){ if(!collide(board,currentPiece,dir,0)){ currentPiece.x+=dir; playMove(); } }
 
 function tryRotate(ccw=false) {
@@ -663,15 +724,17 @@ function tryRotate(ccw=false) {
 
 function update(time=0) {
   if(!gameRunning) return;
-  const dt=time-lastTime; lastTime=time; dropCounter+=dt;
+  if(lastTime===null) lastTime=time;          // first frame after start/resume: no instant drop
+  const dt=Math.min(time-lastTime,250); lastTime=time; dropCounter+=dt;
   if(dropCounter>dropInterval){ drop(); dropCounter=0; }
   drawBoard(); animId=requestAnimationFrame(update);
 }
 
 /* ===== SOUND (Web Audio, synthesised — no files needed) ===== */
-let audioCtx=null, soundOn=(localStorage.getItem('tetris_sound')!=='0');
+let audioCtx=null, soundOn=(lsGet('tetris_sound')!=='0');
 function initAudio(){
-  if(audioCtx) { if(audioCtx.state==='suspended') audioCtx.resume(); return; }
+  /* iOS can leave the context 'interrupted' (not just 'suspended') after a call or app switch */
+  if(audioCtx) { if(audioCtx.state!=='running') audioCtx.resume().catch(()=>{}); return; }
   try{ audioCtx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){}
 }
 function tone(freq,start,dur,type,gain){
@@ -717,7 +780,7 @@ function playSpecial(){ // for rare special pieces
 }
 function playGameOver(){ sweep(440,80,0,0.7,'sawtooth',0.16); tone(110,0.2,0.6,'square',0.12); }
 function toggleSound(){
-  soundOn=!soundOn; localStorage.setItem('tetris_sound',soundOn?'1':'0');
+  soundOn=!soundOn; lsSet('tetris_sound',soundOn?'1':'0');
   const b=document.getElementById('sound-btn'); if(b) b.textContent=soundOn?'🔊':'🔇';
   if(soundOn){ initAudio(); tone(660,0,0.08,'triangle',0.15); }
 }
@@ -736,9 +799,9 @@ function saveState() {
     flashSaveBadge();
   } catch(e){}
 }
-function clearSave(){ localStorage.removeItem(SAVE_KEY); }
+function clearSave(){ lsDel(SAVE_KEY); }
 function getSavedState() {
-  try { const r=localStorage.getItem(SAVE_KEY); return r?JSON.parse(r):null; } catch(e){ return null; }
+  try { const r=lsGet(SAVE_KEY); return r?JSON.parse(r):null; } catch(e){ return null; }
 }
 function flashSaveBadge() {
   const el=document.getElementById('save-badge');
@@ -747,7 +810,10 @@ function flashSaveBadge() {
 }
 
 function checkSavedGame() {
-  const s=getSavedState();
+  /* a game paused in this visit counts even if storage is blocked or full */
+  const s=pausedGame?{score,level,ts:Date.now()}:getSavedState();
+  /* always set it: a stale ▶ 繼續遊戲 from an earlier save must disappear */
+  document.getElementById('resume-section').style.display=s?'block':'none';
   if(!s) return;
   const mins=Math.round((Date.now()-s.ts)/60000);
   const timeStr=mins<1?'剛剛':mins<60?`${mins} 分鐘前`:`${Math.floor(mins/60)} 小時前`;
@@ -756,76 +822,175 @@ function checkSavedGame() {
 }
 
 function resumeGame() {
-  const s=getSavedState(); if(!s){ startGame(); return; }
   initAudio();
+  if(pausedGame){ enterPlay(); return; }    // still in memory: exact position, even if the last save failed
+  const s=getSavedState(); if(!s){ startGame(); return; }
   cancelAnimationFrame(animId);
   board=s.board; boardColors=s.boardColors;
   score=s.score; level=s.level; lines=s.lines;
   dropInterval=s.dropInterval||Math.max(80,800-(level-1)*70);
   currentPiece=s.currentPiece; nextPiece=s.nextPiece;
-  particles=[]; flashRows=[]; flashTimer=0; dropCounter=0; lastTime=0; dropsSinceLastSave=0;
+  particles=[]; flashRows=[]; flashTimer=0; dropsSinceLastSave=0;
   lastMilestone=Math.floor(score/1000);
   updateStats(); drawNext();
+  enterPlay();
+}
+
+/* hide every overlay and (re)start the frame loop; the first frame won't count the time we were away */
+function enterPlay() {
   ['overlay','name-modal','lb-overlay'].forEach(id=>document.getElementById(id).style.display='none');
+  document.getElementById('last-result').style.display='none';
+  stopAllRepeat(); pausedByLB=false; pausedGame=false;
+  cancelAnimationFrame(animId);
+  dropCounter=0; lastTime=null;
   gameRunning=true; animId=requestAnimationFrame(update);
 }
 
-function showStartMenu() {
+/* stop play and keep the exact position in the save (saveState only writes while running) */
+function pauseGame() {
+  if(!gameRunning) return false;
   saveState();
-  gameRunning=false; cancelAnimationFrame(animId);
+  gameRunning=false; cancelAnimationFrame(animId); stopAllRepeat(); pausedGame=true;
+  return true;
+}
+
+function showStartMenu() {
+  pauseGame(); pausedByLB=false;
   checkSavedGame();
   document.getElementById('overlay').style.display='flex';
 }
 
 function startGame() {
   initAudio();
-  cancelAnimationFrame(animId); clearSave();
+  uploadGen++; submitting=false;
+  cancelAnimationFrame(animId); clearSave(); lsDel(PENDING_KEY);
   createBoard(); particles=[]; flashRows=[]; flashTimer=0;
-  score=0; level=1; lines=0; dropInterval=800; dropCounter=0; lastTime=0; dropsSinceLastSave=0; lastMilestone=0;
+  score=0; level=1; lines=0; dropInterval=800; dropsSinceLastSave=0; lastMilestone=0;
   updateStats(); nextPiece=randPiece(); spawnPiece();
-  ['overlay','name-modal','lb-overlay'].forEach(id=>document.getElementById(id).style.display='none');
-  gameRunning=true; animId=requestAnimationFrame(update);
+  enterPlay();
 }
 
-/* auto-save on hide */
-document.addEventListener('visibilitychange',()=>{ if(document.hidden&&gameRunning) saveState(); });
+/* leaving the page (LINE message, home button, lock screen) pauses into the menu;
+   coming back shows ▶ 繼續遊戲 instead of a game that is already falling */
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden) return;
+  stopAllRepeat();
+  if(gameRunning) showStartMenu();
+});
+window.addEventListener('blur', ()=>stopAllRepeat());
 window.addEventListener('pagehide',()=>{ if(gameRunning) saveState(); });
 window.addEventListener('beforeunload',()=>{ if(gameRunning) saveState(); });
 
 /* ===== LEADERBOARD ===== */
 const LB_CACHE_KEY='tetris_lb_cache';
 const LB_CACHE_TTL=60000;
-let lbScrollPos=0;
+const PENDING_KEY='tetris_pending';
+let lbScrollPos=0, pausedByLB=false, pausedGame=false, submitting=false, uploadGen=0, _dev=null;
+
+/* A random id that stays on this phone; the server keeps only its hash and ties your name to it.
+   Cached for the visit, so blocked storage still gives the same id for every upload. */
+const DEVICE_RE=/^[0-9a-f]{32}$/;
+function deviceId() {
+  if(_dev) return _dev;
+  let id=lsGet('tetris_device');
+  if(!id||!DEVICE_RE.test(id)){
+    id=Array.from(crypto.getRandomValues(new Uint8Array(16)),b=>b.toString(16).padStart(2,'0')).join('');
+    lsSet('tetris_device',id);
+  }
+  return _dev=id;
+}
+/* moving to another browser (LINE's own browser vs Safari/Chrome) or phone: carry the code over */
+function showDeviceCode() {
+  prompt('這是你的裝置碼（不要給別人看）。\n換手機或換瀏覽器時，在那邊的排行榜按「換裝置」，貼上這串，就能繼續用你的名字。', deviceId());
+}
+function importDeviceCode() {
+  const v=(prompt('貼上你原本的裝置碼（在原本玩的地方，排行榜 →「我的裝置碼」）')||'').trim().toLowerCase();
+  if(!v) return;
+  if(!DEVICE_RE.test(v)){ alert('裝置碼不對，要是 32 個 0-9 / a-f 的字'); return; }
+  lsSet('tetris_device',v); _dev=v; alert('好了！現在這裡跟原本的地方是同一個裝置。');
+}
+
+/* Name clean-up. The server runs the exact same steps (sql/…-leaderboard-hardening.sql, lb_clean_name),
+   and this repeats until nothing changes, so what we send is exactly what gets stored. */
+const INVISIBLE=/[\u0000-\u001F\u007F-\u009F\u00AD\u034F\u061C\u115F\u1160\u17B4\u17B5\u180B-\u180F\u200B-\u200F\u202A-\u202E\u2060-\u2069\u3164\uFEFF\uFFA0\u{1D173}-\u{1D17A}\u{E0000}-\u{E0FFF}]/gu;
+function cleanStep(s){
+  s=s.replace(INVISIBLE,'').normalize('NFKC').replace(INVISIBLE,'');
+  return s.replace(/[\u1680\u2028\u2029]/g,' ').replace(/ +/g,' ').replace(/^ | $/g,'');
+}
+function cleanName(s){
+  s=String(s);
+  for(let i=0;i<4;i++){ const t=Array.from(cleanStep(s)).slice(0,12).join(''); if(t===s) break; s=t; }
+  return s;
+}
+const SUBMIT_MSG={
+  name_taken:'這個名字綁在別的手機或瀏覽器上。是你的話：在原本玩的地方打開排行榜 →「我的裝置碼」，再到這裡的排行榜按「換裝置」貼上。不是你的話，換個名字吧',
+  legacy_low:'這個名字的舊紀錄比你高，打破它才能用這個名字',
+  too_fast:'太快了，等幾秒再按',
+  bad_name:'名字要 1–12 個字',
+  bad_score:'這個分數沒辦法上傳',
+  bad_device:'裝置資料怪怪的，重新整理再試',
+  busy:'一小時內換太多名字了，晚點再試',
+};
 
 async function submitScore() {
-  const name=(document.getElementById('player-name').value.trim()||'匿名').slice(0,12);
-  localStorage.setItem('tetris_name',name);
+  if(submitting) return;
+  const input=document.getElementById('player-name'), msg=document.getElementById('submit-msg');
+  const name=cleanName(input.value);
+  if(!name){ msg.textContent='先輸入名字'; input.focus(); return; }
+  const c=getSb();
+  if(!c){ msg.textContent='排行榜連不上，檢查網路後再按一次'; return; }
+  const gen=uploadGen;
+  submitting=true; msg.textContent='上傳中…';
+  let res;
+  try{
+    let q=c.rpc('submit_score',{p_name:name,p_score:score,p_level:level,p_lines:lines,p_device:deviceId()});
+    if(window.AbortSignal && AbortSignal.timeout) q=q.abortSignal(AbortSignal.timeout(15000));   // never hang on '上傳中…'
+    res=await q;
+  }catch(e){ res={error:e}; }
+  /* the window this upload belonged to is gone (跳過 / new game): only remember a success */
+  if(gen!==uploadGen){ if(res && !res.error && res.data==='ok'){ lsSet('tetris_name',name); lsDel(LB_CACHE_KEY); } return; }
+  submitting=false;
+  /* the window stays open on any failure, so the player can simply press again */
+  if(res.error){
+    const missing=res.error.code==='PGRST202'||res.status===404;   // page is newer than the server SQL
+    msg.textContent=missing?'排行榜正在更新，分數先幫你留著，等一下再按':'上傳失敗，檢查網路後再按一次';
+    return;
+  }
+  if(res.data!=='ok'){ msg.textContent=SUBMIT_MSG[res.data]||'上傳失敗，再按一次'; return; }
+  msg.textContent='';
+  lsSet('tetris_name',name); lsDel(LB_CACHE_KEY); lsDel(PENDING_KEY);
   document.getElementById('name-modal').style.display='none';
-  const {error}=await sb.rpc('upsert_score',{p_name:name,p_score:score,p_level:level,p_lines:lines});
-  if(!error) localStorage.removeItem(LB_CACHE_KEY);
   showLeaderboard();
 }
 function skipScore() {
+  uploadGen++; submitting=false;
+  lsDel(PENDING_KEY);
   document.getElementById('name-modal').style.display='none';
-  const ov=document.getElementById('overlay');
-  ov.innerHTML=`<div class="ov-card"><div class="ov-title">遊戲結束</div><div class="score-big">${score.toLocaleString()}</div><div class="score-sub">等級 ${level} · 消除 ${lines} 行</div><button class="ov-btn primary" onclick="startGame()">再玩一次</button><br><button class="ov-btn" onclick="showLeaderboard()">排行榜</button></div>`;
-  ov.style.display='flex';
+  checkSavedGame();
+  document.getElementById('overlay').style.display='flex';
 }
 async function showLeaderboard() {
+  /* opened mid-game: pause, and closeLB picks the game back up */
+  if(pauseGame()) pausedByLB=true;
   ['overlay','name-modal'].forEach(id=>document.getElementById(id).style.display='none');
   document.getElementById('lb-overlay').style.display='flex';
   const body=document.querySelector('.lb-body');
   if(body) body.scrollTop=lbScrollPos;
-  const raw=localStorage.getItem(LB_CACHE_KEY);
+  const raw=lsGet(LB_CACHE_KEY);
   if(raw){ try{ const c=JSON.parse(raw); if(Date.now()-c.ts<LB_CACHE_TTL){ renderLB(c.data,c.ts); return; } }catch(e){} }
-  document.getElementById('lb-content').innerHTML='<div class="lb-loading">載入中...</div>';
-  const {data,error}=await sb.from('leaderboard').select('*').order('score',{ascending:false}).limit(50);
-  if(error||!data){ document.getElementById('lb-content').innerHTML='<div class="lb-loading">載入失敗</div>'; return; }
-  const now=Date.now(); localStorage.setItem(LB_CACHE_KEY,JSON.stringify({data,ts:now}));
-  renderLB(data,now);
+  const content=document.getElementById('lb-content');
+  const c=getSb();
+  if(!c){ content.innerHTML='<div class="lb-loading">排行榜連不上，稍後再試</div>'; return; }
+  content.innerHTML='<div class="lb-loading">載入中...</div>';
+  let res;
+  try{ res=await c.from('leaderboard').select('*').order('score',{ascending:false}).limit(50); }
+  catch(e){ res={error:e}; }
+  if(res.error||!res.data){ content.innerHTML='<div class="lb-loading">載入失敗，稍後再試</div>'; return; }
+  const now=Date.now(); lsSet(LB_CACHE_KEY,JSON.stringify({data:res.data,ts:now}));
+  renderLB(res.data,now);
 }
 function renderLB(data,ts) {
-  const myN=localStorage.getItem('tetris_name')||'';
+  const myN=lsGet('tetris_name')||'';
   document.getElementById('lb-updated').textContent=`更新於 ${new Date(ts).toLocaleTimeString('zh-TW')}`;
   if(!data||!data.length){ document.getElementById('lb-content').innerHTML='<div class="lb-loading">還沒有紀錄！</div>'; return; }
   const medals=['🥇','🥈','🥉'];
@@ -834,56 +999,88 @@ function renderLB(data,ts) {
     <tbody>${data.map((r,i)=>{
       const cls=i===0?'rank1':i===1?'rank2':i===2?'rank3':'';
       const me=myN&&r.name===myN?' lb-my-row':'';
-      return `<tr class="${cls}${me}"><td class="rank-num">${medals[i]||i+1}</td><td>${esc(r.name)}${myN&&r.name===myN?' 👈':''}</td><td class="score-cell">${Number(r.score).toLocaleString()}</td><td>${r.level}</td><td class="date-cell">${new Date(r.created_at).toLocaleDateString('zh-TW',{month:'numeric',day:'numeric'})}</td></tr>`;
+      return `<tr class="${cls}${me}"><td class="rank-num">${medals[i]||i+1}</td><td>${esc(r.name)}${myN&&r.name===myN?' 👈':''}</td><td class="score-cell">${Number(r.score).toLocaleString()}</td><td>${Number(r.level)||1}</td><td class="date-cell">${new Date(r.updated_at||r.created_at).toLocaleDateString('zh-TW',{month:'numeric',day:'numeric'})}</td></tr>`;
     }).join('')}</tbody></table>`;
 }
 function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function closeLB() {
   const body=document.querySelector('.lb-body'); if(body) lbScrollPos=body.scrollTop;
   document.getElementById('lb-overlay').style.display='none';
+  if(pausedByLB){ enterPlay(); return; }
   if(!gameRunning) { checkSavedGame(); document.getElementById('overlay').style.display='flex'; }
 }
 
 /* ===== CONTROLS ===== */
-document.getElementById('player-name').addEventListener('keydown',e=>{ if(e.key==='Enter') submitScore(); });
+/* Zhuyin / Pinyin keyboards confirm a candidate with Enter — that must not submit */
+document.getElementById('player-name').addEventListener('keydown',e=>{
+  if(e.key==='Enter' && !e.isComposing && e.keyCode!==229) submitScore();
+});
 document.addEventListener('keydown',e=>{
   if(!gameRunning) return;
   if(e.key==='ArrowLeft'){e.preventDefault();move(-1);}
   else if(e.key==='ArrowRight'){e.preventDefault();move(1);}
-  else if(e.key==='ArrowDown'){e.preventDefault();drop();dropCounter=0;}
+  else if(e.key==='ArrowDown'){e.preventDefault();softDrop();}
   else if(e.key==='ArrowUp'){e.preventDefault();tryRotate();}
   else if(e.key==='z'||e.key==='Z'){e.preventDefault();tryRotate(true);}
   else if(e.key===' '){e.preventDefault();hardDrop();}
+  else if(e.key==='Escape'||e.key==='p'||e.key==='P'){e.preventDefault();showStartMenu();}
 });
 
-function bindBtn(id,action){
-  const el=document.getElementById(id); let iv=null;
-  const s=e=>{e.preventDefault();el.classList.add('pressed');action();
-    if(['btn-left','btn-right','btn-down'].includes(id)) iv=setInterval(()=>{if(gameRunning)action();},95);};
-  const n=e=>{e.preventDefault();el.classList.remove('pressed');if(iv){clearInterval(iv);iv=null;}};
-  el.addEventListener('touchstart',s,{passive:false}); el.addEventListener('touchend',n,{passive:false});
-  el.addEventListener('mousedown',s); el.addEventListener('mouseup',n); el.addEventListener('mouseleave',n);
+/* On-screen buttons. One press = one action. Held ←/→/↓ wait (DAS) before repeating (ARR),
+   so a normal thumb tap never counts twice. Pointer capture + pointercancel mean a press
+   interrupted by the OS (notification, home-bar swipe) always stops. */
+const repeaters=new Set();
+function stopAllRepeat(){ repeaters.forEach(stop=>stop()); }
+function bindBtn(id,action,rep){
+  const el=document.getElementById(id);
+  let t=null, iv=null, pid=null;
+  const stop=()=>{ el.classList.remove('pressed'); clearTimeout(t); clearInterval(iv); t=iv=null; pid=null; };
+  repeaters.add(stop);
+  el.addEventListener('pointerdown',e=>{
+    e.preventDefault();
+    if(pid!==null) return;                 // a second finger on the same button is ignored
+    stop(); pid=e.pointerId;
+    try{ el.setPointerCapture(e.pointerId); }catch(_){}
+    el.classList.add('pressed'); initAudio(); action();
+    if(rep) t=setTimeout(()=>{ iv=setInterval(()=>{ if(gameRunning) action(); else stop(); }, rep.arr); }, rep.das);
+  });
+  const end=e=>{ if(pid===null||e.pointerId===pid){ stop(); initAudio(); } };
+  ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>el.addEventListener(ev,end));
 }
-bindBtn('btn-left',()=>{if(gameRunning)move(-1);});
-bindBtn('btn-right',()=>{if(gameRunning)move(1);});
-bindBtn('btn-down',()=>{if(gameRunning){drop();dropCounter=0;}});
+bindBtn('btn-left',()=>{if(gameRunning)move(-1);},{das:170,arr:50});
+bindBtn('btn-right',()=>{if(gameRunning)move(1);},{das:170,arr:50});
+bindBtn('btn-down',()=>{if(gameRunning)softDrop();},{das:120,arr:50});
 bindBtn('btn-rotate',()=>{if(gameRunning)tryRotate();});
 bindBtn('btn-drop',()=>{if(gameRunning)hardDrop();});
+/* no click after a pad press: on Android, lifting a thumb that is still on ↻ when the game ends
+   would otherwise "click" 上傳分數 / 跳過 in the game-over window that just opened under it */
+document.getElementById('controls').addEventListener('touchend',e=>e.preventDefault(),{passive:false});
 
-/* swipe on canvas: tap=CW rotate, swipe left/right=long press for CCW, short swipe = move */
-let tx=0,ty=0,tMoved=false;
-canvas.addEventListener('touchstart',e=>{e.preventDefault();tx=e.touches[0].clientX;ty=e.touches[0].clientY;tMoved=false;},{passive:false});
+/* tap on the board = rotate clockwise. Track that one finger, so a thumb resting on a
+   control button doesn't get mistaken for it. */
+let tx=0,ty=0,tMoved=false,tId=null;
+canvas.addEventListener('touchstart',e=>{
+  e.preventDefault();
+  const t=e.changedTouches[0]; tId=t.identifier; tx=t.clientX; ty=t.clientY; tMoved=false;
+},{passive:false});
 canvas.addEventListener('touchmove',e=>{e.preventDefault();tMoved=true;},{passive:false});
 canvas.addEventListener('touchend',e=>{
   e.preventDefault();
+  const t=[...e.changedTouches].find(t=>t.identifier===tId); if(!t) return;
+  tId=null;
   if(!gameRunning) return;
-  const dx=e.changedTouches[0].clientX-tx, dy=e.changedTouches[0].clientY-ty;
+  const dx=t.clientX-tx, dy=t.clientY-ty;
   if(!tMoved||Math.abs(dx)<12&&Math.abs(dy)<12) tryRotate();
 },{passive:false});
 
 /* ===== INIT ===== */
 createBoard(); drawBoard(); checkSavedGame();
 document.getElementById('sound-btn').textContent=soundOn?'🔊':'🔇';
+/* a finished game that was never uploaded or skipped (page reloaded at the name prompt) */
+try{
+  const p=JSON.parse(lsGet(PENDING_KEY)||'null');
+  if(p&&p.score>0){ score=p.score; level=p.level; lines=p.lines; showNameModal(); }
+}catch(e){}
 </script>
 </body>
 </html>
