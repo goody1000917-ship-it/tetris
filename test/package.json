@@ -1,5 +1,11 @@
 {
   "private": true,
   "type": "module",
-  "devDependencies": { "@electric-sql/pglite": "^0.5.8" }
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "miniflare": "^5.20260923.0-alpha"
+  },
+  "allowScripts": {
+    "workerd@1.20260923.1": true
+  }
 }

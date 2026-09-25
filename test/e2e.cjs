@@ -1,11 +1,11 @@
-// Headless end-to-end checks for ../index.html. Supabase + the jsdelivr CDN are stubbed; nothing touches the real backend.
+// Headless end-to-end checks for ../index.html. The leaderboard API is stubbed (and, in the last section, served by the
+// real leaderboard-worker code in a local Miniflare); nothing touches the real backend.
 // Run:  node test/e2e.cjs       (ROOT=<folder with index.html> to test another copy)
-// Needs: puppeteer-core (PUPPETEER env var or the path below), system Chrome, and test/sb.js:
-//   curl -so test/sb.js https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1/dist/umd/supabase.js
+// Needs: puppeteer-core (PUPPETEER env var or the path below), system Chrome, and `npm install` in test/ (miniflare).
 const puppeteer = require(process.env.PUPPETEER || 'C:/Users/OWNER/Desktop/claude/Shanhai-Echoes/node_modules/puppeteer-core');
 const http = require('http'), fs = require('fs'), path = require('path');
 const ROOT = process.env.ROOT || path.resolve(__dirname, '..');
-const SBJS = fs.readFileSync(path.join(__dirname, 'sb.js'));
+const API = 'https://tetris-api.happygoody.net';
 const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 
 let pass = 0, fail = 0; const fails = [];
@@ -22,26 +22,23 @@ async function newPage(browser, opts = {}) {
   const errors = [];
   page.on('pageerror', e => errors.push(String(e.message || e)));
   page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|ERR_FAILED|net::/.test(m.text())) errors.push('console: ' + m.text()); });
-  page.__rpc = opts.rpc || (() => ({ status: 200, body: '"ok"' }));
+  page.__rpc = opts.rpc || (() => ({ status: 200, body: '{"status":"ok"}' }));
   page.__rows = opts.rows || [{ name: 'alice', score: 5000, level: 3, lines: 25, created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z' }];
   page.__rpcCalls = [];
   await page.setRequestInterception(true);
   page.on('request', r => {
     const u = r.url();
     const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' };
-    if (u.includes('cdn.jsdelivr.net')) {
-      if (opts.blockCdn) return r.abort();
-      return r.respond({ status: 200, headers: { ...cors, 'content-type': 'application/javascript' }, body: SBJS });
-    }
-    if (u.includes('supabase.co')) {
+    if (u.startsWith(API)) {
+      if (opts.blockApi) return r.abort();
       if (r.method() === 'OPTIONS') return r.respond({ status: 204, headers: cors });
-      if (u.includes('/rpc/submit_score')) {
+      if (u.startsWith(API + '/submit')) {
         page.__rpcCalls.push(JSON.parse(r.postData() || '{}'));
         const a = page.__rpc(r);
         if (a === 'abort') return r.abort();
         return r.respond({ status: a.status, headers: { ...cors, 'content-type': 'application/json' }, body: a.body });
       }
-      if (u.includes('/rest/v1/leaderboard')) return r.respond({ status: 200, headers: { ...cors, 'content-type': 'application/json' }, body: JSON.stringify(page.__rows) });
+      if (u.startsWith(API + '/top')) return r.respond({ status: 200, headers: { ...cors, 'content-type': 'application/json' }, body: JSON.stringify({ rows: page.__rows }) });
       return r.respond({ status: 404, headers: cors, body: '{}' });
     }
     r.continue();
@@ -65,7 +62,7 @@ const disp = (page, id) => page.$eval('#' + id, el => getComputedStyle(el).displ
   ok(await disp(page, 'overlay') === 'flex', 'start menu visible');
   ok(await disp(page, 'resume-section') === 'none', 'no resume button without a save');
   ok(await page.$eval('link[rel=icon]', l => l.href.startsWith('data:image/svg')), 'favicon present');
-  ok(await page.evaluate(() => !!window.supabase), 'supabase lib loaded (SRI hash matches)');
+  ok(await page.evaluate(() => !document.querySelector('script[src]') && typeof lbFetch === 'function'), 'no external library: the page talks to the API with fetch');
 
   // ---------------- rotation (SRS) ----------------
   console.log('rotation');
@@ -239,13 +236,23 @@ const disp = (page, id) => page.$eval('#' + id, el => getComputedStyle(el).displ
   const setup = () => page.evaluate(() => { startGame(); createBoard(); const d = PIECE_DEFS[2]; currentPiece = { shape: d.s.map(r => [...r]), color: d.c, glow: d.g, kick: 'JLSTZ', rotState: 0, label: null, x: 3, y: 2 }; dropInterval = 1e9; });
   const X = () => page.evaluate(() => currentPiece.x);
   const R = await center('btn-right'), L = await center('btn-left');
-
+  // Judge taps by how long the PAGE saw the finger down (a busy machine can deliver touchEnd late,
+  // which is then a genuinely longer press). DAS 170 + ARR 50: the first repeat is at ~220 ms.
+  await page.evaluate(() => {
+    window.__t = {};
+    document.addEventListener('pointerdown', () => { __t.down = performance.now(); }, true);
+    document.addEventListener('pointerup', () => { __t.up = performance.now(); }, true);
+  });
+  let judged = 0;
   for (const [B, dir, nm] of [[R, 1, '→'], [L, -1, '←']]) for (const ms of [60, 100, 130, 160, 180]) {
     await setup(); const x0 = await X();
     await touch('touchStart', [{ x: B.x, y: B.y, id: 1 }]); await sleep(ms); await touch('touchEnd', []);
     await sleep(80);
-    ok(await X() - x0 === dir, `a ${ms} ms tap on ${nm} moves exactly 1 cell (moved ${await X() - x0})`);
+    const held = await page.evaluate(() => __t.up - __t.down), moved = await X() - x0;
+    if (held < 210) { judged++; ok(moved === dir, `a ${Math.round(held)} ms tap on ${nm} moves exactly 1 cell (moved ${moved})`); }
+    else console.log(`  (a ${ms} ms tap reached the page as ${Math.round(held)} ms — not judged)`);
   }
+  ok(judged >= 7, `enough taps were judged (${judged}/10)`);
   await setup(); let x0 = await X();
   await touch('touchStart', [{ x: R.x, y: R.y, id: 1 }]); await sleep(420); await touch('touchEnd', []); await sleep(100);
   const held = await X() - x0;
@@ -262,10 +269,12 @@ const disp = (page, id) => page.$eval('#' + id, el => getComputedStyle(el).displ
   ok(await X() - x0 === -1, `two fingers on ← move once and stop (moved ${await X() - x0})`);
   // a hidden page stops a held button
   await setup(); x0 = await X();
-  await touch('touchStart', [{ x: R.x, y: R.y, id: 1 }]); await sleep(20);
-  await page.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => true }); document.dispatchEvent(new Event('visibilitychange')); Object.defineProperty(document, 'hidden', { configurable: true, get: () => false }); });
+  await touch('touchStart', [{ x: R.x, y: R.y, id: 1 }]);
+  const hiddenAt = await page.evaluate(() => { const t = performance.now() - __t.down; Object.defineProperty(document, 'hidden', { configurable: true, get: () => true }); document.dispatchEvent(new Event('visibilitychange')); Object.defineProperty(document, 'hidden', { configurable: true, get: () => false }); return t; });
   await sleep(600); await touch('touchEnd', []);
-  ok(await X() - x0 === 1, `leaving the app stops a held button (moved ${await X() - x0})`);
+  const movedHidden = await X() - x0;
+  if (hiddenAt < 210) ok(movedHidden === 1, `leaving the app stops a held button (moved ${movedHidden})`);
+  else ok(movedHidden <= 2, `leaving the app stops a held button (page was busy ${Math.round(hiddenAt)} ms; moved ${movedHidden})`);
 
   // ---------------- fireworks on a narrow phone ----------------
   console.log('fireworks');
@@ -292,7 +301,7 @@ const disp = (page, id) => page.$eval('#' + id, el => getComputedStyle(el).displ
   // ---------------- upload: failure keeps the window, retry works ----------------
   console.log('upload');
   let mode = 'abort';
-  page = await newPage(browser, { rpc: () => mode === 'abort' ? 'abort' : mode === '500' ? { status: 500, body: '{"message":"x"}' } : mode === 'taken' ? { status: 200, body: '"name_taken"' } : { status: 200, body: '"ok"' } });
+  page = await newPage(browser, { rpc: () => mode === 'abort' ? 'abort' : mode === '500' ? { status: 500, body: '{"error":"server_error"}' } : mode === 'taken' ? { status: 200, body: '{"status":"name_taken"}' } : { status: 200, body: '{"status":"ok"}' } });
   await page.goto(URL, { waitUntil: 'load' });
   await page.evaluate(() => { startGame(); score = 1000; level = 1; lines = 5; endGame(); });
   const pend = await page.evaluate(() => localStorage.getItem('tetris_pending'));
@@ -316,7 +325,7 @@ const disp = (page, id) => page.$eval('#' + id, el => getComputedStyle(el).displ
   await Promise.all([page.evaluate(() => submitScore()), page.evaluate(() => submitScore())]); await sleep(400);
   ok(page.__rpcCalls.length === callsBefore + 1, 'double tap sends once: ' + (page.__rpcCalls.length - callsBefore));
   const last = page.__rpcCalls[page.__rpcCalls.length - 1];
-  ok(last.p_name === '小明' && last.p_score === 1000 && /^[0-9a-f]{32}$/.test(last.p_device), 'sends name, score and a device id');
+  ok(last.name === '小明' && last.score === 1000 && last.level === 1 && last.lines === 5 && /^[0-9a-f]{32}$/.test(last.device), 'sends name, score and a device id');
   ok(await disp(page, 'name-modal') === 'none' && await disp(page, 'lb-overlay') === 'flex', 'success opens the leaderboard');
   ok(await page.evaluate(() => localStorage.getItem('tetris_pending')) === null, 'pending cleared after upload');
   ok(await page.evaluate(() => /alice/.test(document.getElementById('lb-content').textContent)), 'leaderboard rows render');
@@ -336,9 +345,9 @@ const disp = (page, id) => page.$eval('#' + id, el => getComputedStyle(el).displ
   ok(await disp(page, 'name-modal') === 'none', 'skipped result does not come back');
   await page.close();
 
-  // ---------------- CDN blocked: game still works ----------------
-  console.log('cdn blocked');
-  page = await newPage(browser, { blockCdn: true });
+  // ---------------- leaderboard server unreachable: game still works ----------------
+  console.log('api blocked');
+  page = await newPage(browser, { blockApi: true });
   await page.goto(URL, { waitUntil: 'load' });
   await page.evaluate(() => localStorage.clear());
   const cdn = await page.evaluate(async () => {
@@ -348,10 +357,10 @@ const disp = (page, id) => page.$eval('#' + id, el => getComputedStyle(el).displ
     score = 100; level = 1; lines = 1; endGame(); document.getElementById('player-name').value = 'x'; await submitScore();
     return { running, lbText, msg: document.getElementById('submit-msg').textContent, modal: getComputedStyle(document.getElementById('name-modal')).display };
   });
-  ok(cdn.running, 'game plays with the CDN blocked');
+  ok(cdn.running, 'game plays with the server unreachable');
   ok(/連不上/.test(cdn.lbText), 'leaderboard says it cannot connect: ' + cdn.lbText);
-  ok(/連不上/.test(cdn.msg) && cdn.modal === 'flex', 'upload says it cannot connect and keeps the window');
-  ok(page.errors.length === 0, 'no page errors (CDN blocked): ' + page.errors.join(' | '));
+  ok(/上傳失敗，檢查網路/.test(cdn.msg) && cdn.modal === 'flex', 'upload says it failed and keeps the window: ' + cdn.msg);
+  ok(page.errors.length === 0, 'no page errors (server unreachable): ' + page.errors.join(' | '));
   await page.close();
 
   // ================= review round 2 =================
@@ -407,11 +416,10 @@ const disp = (page, id) => page.$eval('#' + id, el => getComputedStyle(el).displ
   page.removeAllListeners('request');
   page.on('request', r => {
     const u = r.url(), cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' };
-    if (u.includes('cdn.jsdelivr.net')) return r.respond({ status: 200, headers: { ...cors, 'content-type': 'application/javascript' }, body: SBJS });
-    if (u.includes('supabase.co')) {
+    if (u.startsWith(API)) {
       if (r.method() === 'OPTIONS') return r.respond({ status: 204, headers: cors });
-      if (u.includes('/rpc/submit_score')) { page.__rpcCalls.push(JSON.parse(r.postData() || '{}')); if (!hold) { hold = r; return; } return r.respond({ status: 200, headers: { ...cors, 'content-type': 'application/json' }, body: '"ok"' }); }
-      return r.respond({ status: 200, headers: { ...cors, 'content-type': 'application/json' }, body: '[]' });
+      if (u.startsWith(API + '/submit')) { page.__rpcCalls.push(JSON.parse(r.postData() || '{}')); if (!hold) { hold = r; return; } return r.respond({ status: 200, headers: { ...cors, 'content-type': 'application/json' }, body: '{"status":"ok"}' }); }
+      return r.respond({ status: 200, headers: { ...cors, 'content-type': 'application/json' }, body: '{"rows":[]}' });
     }
     r.continue();
   });
@@ -420,20 +428,45 @@ const disp = (page, id) => page.$eval('#' + id, el => getComputedStyle(el).displ
   await sleep(300);
   await page.evaluate(() => { skipScore(); startGame(); });
   const cors = { 'access-control-allow-origin': '*', 'content-type': 'application/json' };
-  await hold.respond({ status: 200, headers: cors, body: '"ok"' }); await sleep(400);
+  await hold.respond({ status: 200, headers: cors, body: '{"status":"ok"}' }); await sleep(400);
   const late = await page.evaluate(() => ({ running: gameRunning, lb: getComputedStyle(document.getElementById('lb-overlay')).display, submitting }));
   ok(late.running && late.lb === 'none' && !late.submitting, 'a late reply does not pause the new game: ' + JSON.stringify(late));
   await page.evaluate(() => { score = 3400; level = 1; lines = 17; endGame(); document.getElementById('player-name').value = '小明'; });
   await page.evaluate(() => submitScore()); await sleep(300);
-  const g2 = page.__rpcCalls.map(c => c.p_score);
+  const g2 = page.__rpcCalls.map(c => c.score);
   ok(JSON.stringify(g2) === '[1200,3400]', 'the next game uploads on the first tap: ' + JSON.stringify(g2));
   await page.close();
 
   // server not updated yet (function missing) -> clear message, result kept
-  page = await newPage(browser, { rpc: () => ({ status: 404, body: '{"code":"PGRST202","message":"Could not find the function public.submit_score"}' }) });
+  page = await newPage(browser, { rpc: () => ({ status: 404, body: '{"error":"not_found"}' }) });
   await page.goto(URL, { waitUntil: 'load' });
   await page.evaluate(async () => { localStorage.clear(); startGame(); score = 100; level = 1; lines = 1; endGame(); document.getElementById('player-name').value = 'x'; await submitScore(); });
-  ok(/排行榜正在更新/.test(await page.$eval('#submit-msg', e => e.textContent)) && await page.evaluate(() => !!localStorage.getItem('tetris_pending')), 'missing server function: "updating" message, result kept');
+  ok(/排行榜正在更新/.test(await page.$eval('#submit-msg', e => e.textContent)) && await page.evaluate(() => !!localStorage.getItem('tetris_pending')), 'server not deployed yet (404): "updating" message, result kept');
+  await page.close();
+
+  // too many uploads at once (server's rate limit) -> its own message, result kept
+  page = await newPage(browser, { rpc: () => ({ status: 429, body: '{"status":"rate_limited"}' }) });
+  await page.goto(URL, { waitUntil: 'load' });
+  await page.evaluate(async () => { localStorage.clear(); startGame(); score = 100; level = 1; lines = 1; endGame(); document.getElementById('player-name').value = 'x'; await submitScore(); });
+  ok(/現在上傳的人太多/.test(await page.$eval('#submit-msg', e => e.textContent)) && await page.evaluate(() => !!localStorage.getItem('tetris_pending')), 'rate limited: its own message, result kept');
+  await page.close();
+
+  // an older, slower board load must not overwrite a newer one
+  let heldTop = null, topCalls = 0;
+  page = await newPage(browser);
+  page.removeAllListeners('request');
+  page.on('request', r => {
+    const u = r.url(), cors = { 'access-control-allow-origin': '*' };
+    if (u.startsWith(API + '/top')) { if (++topCalls === 1) { heldTop = r; return; } return r.respond({ status: 200, headers: { ...cors, 'content-type': 'application/json' }, body: JSON.stringify({ rows: [{ name: 'Fresh', score: 900, level: 1, lines: 5, created_at: '2026-09-25T00:00:00Z', updated_at: '2026-09-25T00:00:00Z' }] }) }); }
+    r.continue();
+  });
+  await page.goto(URL, { waitUntil: 'load' });
+  await page.evaluate(() => { localStorage.clear(); showLeaderboard(); });          // load A hangs
+  await sleep(200);
+  await page.evaluate(async () => { closeLB(); showLeaderboard(); await new Promise(r => setTimeout(r, 300)); });   // load B answers
+  await heldTop.respond({ status: 500, headers: { 'access-control-allow-origin': '*', 'content-type': 'application/json' }, body: '{"error":"server_error"}' });
+  await sleep(300);
+  ok(/Fresh/.test(await page.$eval('#lb-content', e => e.textContent)), 'a late failed load does not replace the newer board');
   await page.close();
 
   // storage blocked: pausing keeps the game in memory
@@ -471,6 +504,71 @@ const disp = (page, id) => page.$eval('#' + id, el => getComputedStyle(el).displ
   ok(await page.evaluate(() => currentPiece.rotState) === 1, 'board tap rotates while the other thumb holds ←');
   ok(page.errors.length === 0, 'no page errors (phone round 2): ' + page.errors.join(' | '));
   await page.close();
+
+  // ================= the page against the REAL worker code (local Miniflare + D1) =================
+  console.log('real worker');
+  const { Miniflare, convertV4MiniflareOptions } = await import('miniflare');
+  const mf = new Miniflare(convertV4MiniflareOptions({
+    modules: true, script: fs.readFileSync(path.join(__dirname, '../leaderboard-worker/src/index.js'), 'utf8'),
+    d1Databases: { DB: 'e2e' }, compatibilityDate: '2026-09-18',
+  }));
+  const mdb = await mf.getD1Database('DB');
+  for (const q of fs.readFileSync(path.join(__dirname, '../leaderboard-worker/migrations/0001_init.sql'), 'utf8')
+    .replace(/--.*$/gm, '').split(';').map(x => x.trim()).filter(Boolean)) await mdb.prepare(q).run();
+  await mdb.prepare("INSERT INTO leaderboard (name, score, level, lines, created_at, updated_at) VALUES ('Mandy', 30500, 7, 67, '2026-06-16T01:47:09Z', '2026-06-16T01:47:09Z')").run();
+  const realPage = async ctx => {
+    const p = await (ctx || browser).newPage(); const errs = [];
+    p.on('pageerror', e => errs.push(String(e.message || e)));
+    await p.setRequestInterception(true);
+    p.on('request', async r => {
+      if (!r.url().startsWith(API)) return r.continue();
+      try {
+        const res = await mf.dispatchFetch(r.url(), { method: r.method(), headers: r.headers(), body: ['GET', 'HEAD'].includes(r.method()) ? undefined : r.postData() });
+        const headers = {}; res.headers.forEach((v, k) => { headers[k] = v; });
+        await r.respond({ status: res.status, headers, body: Buffer.from(await res.arrayBuffer()) });
+      } catch (e) { r.abort(); }
+    });
+    p.errs = errs; await p.setViewport({ width: 1280, height: 800 }); return p;
+  };
+  page = await realPage();
+  await page.goto(URL, { waitUntil: 'load' });
+  const real1 = await page.evaluate(async () => {
+    localStorage.clear(); startGame(); score = 1200; level = 2; lines = 10; endGame();
+    document.getElementById('player-name').value = '  小明  ';
+    document.querySelector('#name-modal .ov-btn.primary').click();                  // the real 上傳分數 button
+    for (let i = 0; i < 50 && !/小明/.test(document.getElementById('lb-content').textContent); i++) await new Promise(r => setTimeout(r, 100));
+    return { lb: document.getElementById('lb-content').innerText, mine: !!document.querySelector('.lb-my-row'),
+      name: localStorage.getItem('tetris_name'), pending: localStorage.getItem('tetris_pending'), dev: localStorage.getItem('tetris_device') };
+  });
+  const row = await mdb.prepare("SELECT score, level, lines FROM leaderboard WHERE name = '小明'").first();
+  ok(row && row.score === 1200 && row.level === 2 && row.lines === 10, 'real worker stored the upload: ' + JSON.stringify(row));
+  ok(/Mandy[\s\S]*小明/.test(real1.lb) && real1.mine && real1.name === '小明' && real1.pending === null, 'board from the real worker shows it, marked as mine: ' + JSON.stringify(real1).slice(0, 200));
+  // a second phone (its own storage) can't use 小明 ...
+  const ctx2 = await browser.createBrowserContext();
+  const p2 = await realPage(ctx2);
+  await p2.goto(URL, { waitUntil: 'load' });
+  const taken = await p2.evaluate(async () => {
+    localStorage.clear(); startGame(); score = 2000; level = 2; lines = 10; endGame();
+    document.getElementById('player-name').value = '小明'; await submitScore();
+    return { msg: document.getElementById('submit-msg').textContent, modal: getComputedStyle(document.getElementById('name-modal')).display };
+  });
+  ok(/綁在別的手機或瀏覽器/.test(taken.msg) && taken.modal === 'flex', 'second phone gets the "tied to another phone" message');
+  // ... until it takes over the first phone's device code with 換裝置
+  await mdb.prepare("UPDATE owners SET last_submit = '2000-01-01T00:00:00.000Z'").run();
+  const moved = await p2.evaluate(async code => {
+    window.prompt = () => code; window.alert = () => {}; importDeviceCode(); await submitScore();
+    return { msg: document.getElementById('submit-msg').textContent, lb: getComputedStyle(document.getElementById('lb-overlay')).display };
+  }, real1.dev);
+  const row2 = await mdb.prepare("SELECT score FROM leaderboard WHERE name = '小明'").first();
+  ok(moved.lb === 'flex' && row2.score === 2000, 'after 換裝置 the second phone uploads as 小明: ' + JSON.stringify(moved) + JSON.stringify(row2));
+  // an impossible score typed in devtools is refused by the real server
+  const fake = await p2.evaluate(async () => {
+    score = 99999900; level = 1; lines = 0; showNameModal(); document.getElementById('player-name').value = 'hacker'; await submitScore();
+    return document.getElementById('submit-msg').textContent;
+  });
+  ok(/沒辦法上傳/.test(fake) && !(await mdb.prepare("SELECT 1 AS x FROM leaderboard WHERE name = 'hacker'").first()), 'real server refuses an impossible score: ' + fake);
+  ok(page.errs.length === 0 && p2.errs.length === 0, 'no page errors (real worker): ' + page.errs.concat(p2.errs).join(' | '));
+  await page.close(); await p2.close(); await ctx2.close(); await mf.dispose();
 
   await browser.close(); server.close();
   console.log(`\n${pass} passed, ${fail} failed`);

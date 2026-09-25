@@ -1,0 +1,27 @@
+{
+  // Tetris leaderboard API. Deploy: cd leaderboard-worker && npx wrangler@latest deploy
+  "name": "tetris-leaderboard",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-18",
+  "workers_dev": false,
+  "routes": [
+    { "pattern": "tetris-api.happygoody.net", "custom_domain": true }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "tetris-leaderboard",
+      "database_id": "0aedca10-a018-4f89-9345-bf3f83dbcea9",
+      "migrations_dir": "migrations"
+    }
+  ],
+  // These protect the free D1 quotas (100k rows written / 5M read per day). They run inside the Worker, so a
+  // blocked request still counts toward the 100k Worker requests/day — that account-wide cap is not guarded here.
+  // SUBMIT_GLOBAL is one board-wide key (per Cloudflare location, approximate): a real game needs a handful a day.
+  "ratelimits": [
+    { "name": "SUBMIT_LIMIT", "namespace_id": "2101", "simple": { "limit": 20, "period": 60 } },
+    { "name": "READ_LIMIT", "namespace_id": "2102", "simple": { "limit": 120, "period": 60 } },
+    { "name": "SUBMIT_GLOBAL", "namespace_id": "2103", "simple": { "limit": 60, "period": 60 } }
+  ],
+  "observability": { "enabled": true }
+}

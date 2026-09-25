@@ -5,9 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>俄羅斯方塊</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23060612'/%3E%3Crect x='4' y='6' width='8' height='8' rx='1.5' fill='%23C77DFF'/%3E%3Crect x='12' y='6' width='8' height='8' rx='1.5' fill='%23C77DFF'/%3E%3Crect x='20' y='6' width='8' height='8' rx='1.5' fill='%23C77DFF'/%3E%3Crect x='12' y='14' width='8' height='8' rx='1.5' fill='%23C77DFF'/%3E%3Crect x='4' y='22' width='8' height='6' rx='1.5' fill='%2300C9FF'/%3E%3Crect x='20' y='22' width='8' height='6' rx='1.5' fill='%23FFD93D'/%3E%3C/svg%3E">
-<!-- leaderboard library: pinned + integrity-checked, and deferred so the game never waits for (or dies with) the CDN -->
-<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1/dist/umd/supabase.js"
-        integrity="sha384-K1nraABOP/zFehpLIUksXebbs7jMpB8gYMlb+uhVKZcWT/9Vkq1+qhv6ndC+1Yuz" crossorigin="anonymous"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 body{
@@ -284,13 +281,19 @@ body::before{
 </div>
 
 <script>
-const SUPABASE_URL = 'https://uvbvxywapuscfrfcmlaw.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_6mq88BDCaddDgSymY38Xvw_msebYgTY';
-/* created on first use: if the CDN is slow or blocked, only the leaderboard is affected */
-let _sb=null;
-function getSb(){
-  if(!_sb && window.supabase && window.supabase.createClient) _sb=window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  return _sb;
+/* Leaderboard server: Cloudflare Worker + D1 (leaderboard-worker/). It never sleeps, unlike the old
+   free Supabase project. Unreachable server = only the leaderboard is affected, never the game. */
+const LB_API = 'https://tetris-api.happygoody.net';
+/* never throws, never hangs longer than 15 s; status 0 = no answer (offline, blocked, timed out) */
+async function lbFetch(path, opts={}) {
+  let timer=null, signal;
+  if(window.AbortController){ const ac=new AbortController(); signal=ac.signal; timer=setTimeout(()=>ac.abort(),15000); }
+  try{
+    const r=await fetch(LB_API+path,{...opts,signal,cache:'no-store'});
+    let data=null; try{ data=await r.json(); }catch(e){}
+    return {status:r.status,data};
+  }catch(e){ return {status:0,data:null}; }
+  finally{ clearTimeout(timer); }
 }
 /* localStorage can throw (private mode, storage full) — never let that break the game */
 function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
@@ -885,7 +888,7 @@ window.addEventListener('beforeunload',()=>{ if(gameRunning) saveState(); });
 const LB_CACHE_KEY='tetris_lb_cache';
 const LB_CACHE_TTL=60000;
 const PENDING_KEY='tetris_pending';
-let lbScrollPos=0, pausedByLB=false, pausedGame=false, submitting=false, uploadGen=0, _dev=null;
+let lbScrollPos=0, pausedByLB=false, pausedGame=false, submitting=false, uploadGen=0, lbLoad=0, _dev=null;
 
 /* A random id that stays on this phone; the server keeps only its hash and ties your name to it.
    Cached for the visit, so blocked storage still gives the same id for every upload. */
@@ -910,8 +913,8 @@ function importDeviceCode() {
   lsSet('tetris_device',v); _dev=v; alert('好了！現在這裡跟原本的地方是同一個裝置。');
 }
 
-/* Name clean-up. The server runs the exact same steps (sql/…-leaderboard-hardening.sql, lb_clean_name),
-   and this repeats until nothing changes, so what we send is exactly what gets stored. */
+/* Name clean-up. leaderboard-worker/src/index.js has a character-for-character copy of the block below
+   (test/worker.test.mjs checks), and this repeats until nothing changes, so what we send is what gets stored. */
 const INVISIBLE=/[\u0000-\u001F\u007F-\u009F\u00AD\u034F\u061C\u115F\u1160\u17B4\u17B5\u180B-\u180F\u200B-\u200F\u202A-\u202E\u2060-\u2069\u3164\uFEFF\uFFA0\u{1D173}-\u{1D17A}\u{E0000}-\u{E0FFF}]/gu;
 function cleanStep(s){
   s=s.replace(INVISIBLE,'').normalize('NFKC').replace(INVISIBLE,'');
@@ -930,6 +933,7 @@ const SUBMIT_MSG={
   bad_score:'這個分數沒辦法上傳',
   bad_device:'裝置資料怪怪的，重新整理再試',
   busy:'一小時內換太多名字了，晚點再試',
+  rate_limited:'現在上傳的人太多，等一分鐘再按（分數先幫你留著）',
 };
 
 async function submitScore() {
@@ -937,26 +941,21 @@ async function submitScore() {
   const input=document.getElementById('player-name'), msg=document.getElementById('submit-msg');
   const name=cleanName(input.value);
   if(!name){ msg.textContent='先輸入名字'; input.focus(); return; }
-  const c=getSb();
-  if(!c){ msg.textContent='排行榜連不上，檢查網路後再按一次'; return; }
   const gen=uploadGen;
   submitting=true; msg.textContent='上傳中…';
-  let res;
-  try{
-    let q=c.rpc('submit_score',{p_name:name,p_score:score,p_level:level,p_lines:lines,p_device:deviceId()});
-    if(window.AbortSignal && AbortSignal.timeout) q=q.abortSignal(AbortSignal.timeout(15000));   // never hang on '上傳中…'
-    res=await q;
-  }catch(e){ res={error:e}; }
+  const res=await lbFetch('/submit',{method:'POST',headers:{'content-type':'text/plain;charset=UTF-8'},
+    body:JSON.stringify({name,score,level,lines,device:deviceId()})});
+  const st=res.data&&res.data.status;
   /* the window this upload belonged to is gone (跳過 / new game): only remember a success */
-  if(gen!==uploadGen){ if(res && !res.error && res.data==='ok'){ lsSet('tetris_name',name); lsDel(LB_CACHE_KEY); } return; }
+  if(gen!==uploadGen){ if(st==='ok'){ lsSet('tetris_name',name); lsDel(LB_CACHE_KEY); } return; }
   submitting=false;
   /* the window stays open on any failure, so the player can simply press again */
-  if(res.error){
-    const missing=res.error.code==='PGRST202'||res.status===404;   // page is newer than the server SQL
-    msg.textContent=missing?'排行榜正在更新，分數先幫你留著，等一下再按':'上傳失敗，檢查網路後再按一次';
+  if(st!=='ok'){
+    msg.textContent = res.status===0 ? '上傳失敗，檢查網路後再按一次'
+      : res.status===404 ? '排行榜正在更新，分數先幫你留著，等一下再按'
+      : SUBMIT_MSG[st] || '上傳失敗，再按一次';
     return;
   }
-  if(res.data!=='ok'){ msg.textContent=SUBMIT_MSG[res.data]||'上傳失敗，再按一次'; return; }
   msg.textContent='';
   lsSet('tetris_name',name); lsDel(LB_CACHE_KEY); lsDel(PENDING_KEY);
   document.getElementById('name-modal').style.display='none';
@@ -976,18 +975,20 @@ async function showLeaderboard() {
   document.getElementById('lb-overlay').style.display='flex';
   const body=document.querySelector('.lb-body');
   if(body) body.scrollTop=lbScrollPos;
+  const my=++lbLoad;                       // a slower, older load must not overwrite a newer board
   const raw=lsGet(LB_CACHE_KEY);
   if(raw){ try{ const c=JSON.parse(raw); if(Date.now()-c.ts<LB_CACHE_TTL){ renderLB(c.data,c.ts); return; } }catch(e){} }
   const content=document.getElementById('lb-content');
-  const c=getSb();
-  if(!c){ content.innerHTML='<div class="lb-loading">排行榜連不上，稍後再試</div>'; return; }
   content.innerHTML='<div class="lb-loading">載入中...</div>';
-  let res;
-  try{ res=await c.from('leaderboard').select('*').order('score',{ascending:false}).limit(50); }
-  catch(e){ res={error:e}; }
-  if(res.error||!res.data){ content.innerHTML='<div class="lb-loading">載入失敗，稍後再試</div>'; return; }
-  const now=Date.now(); lsSet(LB_CACHE_KEY,JSON.stringify({data:res.data,ts:now}));
-  renderLB(res.data,now);
+  const res=await lbFetch('/top');
+  if(my!==lbLoad) return;
+  const rows=res.data&&Array.isArray(res.data.rows)?res.data.rows:null;
+  if(!rows){
+    content.innerHTML=`<div class="lb-loading">${res.status===0?'排行榜連不上，稍後再試':'載入失敗，稍後再試'}</div>`;
+    return;
+  }
+  const now=Date.now(); lsSet(LB_CACHE_KEY,JSON.stringify({data:rows,ts:now}));
+  renderLB(rows,now);
 }
 function renderLB(data,ts) {
   const myN=lsGet('tetris_name')||'';
