@@ -1,0 +1,600 @@
+<title>會考每日練</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=LXGW+WenKai+TC:wght@400;700&display=swap">
+<style>
+/* Layout: one 640px column; sticky header with the exam countdown; fixed bottom tab bar;
+   the question card is drawn like a squared exam sheet (方格紙) with 2B-pencil greys,
+   a 考卷藍 ink accent, red-pen for wrong and green-pen for right. */
+:root{
+  --bg:#F1F3F6; --paper:#FFFFFF; --ink:#1B2430; --muted:#5F6B7D; --line:#D5DBE5; --line-soft:#E7EBF1;
+  --accent:#2C58B4; --accent-ink:#FFFFFF; --accent-soft:#E4ECFA;
+  --ok:#1C8A57; --ok-soft:#E1F3E9; --bad:#C43F2E; --bad-soft:#FBE6E2; --warn:#A8700F; --warn-soft:#FBF0D6;
+  --grid:rgba(44,88,180,.07); --shadow:0 1px 2px rgba(27,36,48,.06),0 8px 24px rgba(27,36,48,.06);
+  --font-body:"Noto Sans TC",system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;
+  --font-display:"LXGW WenKai TC","Noto Sans TC","PingFang TC",serif;
+  --radius:14px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#11161F; --paper:#1A2130; --ink:#E9EDF3; --muted:#9BA6B9; --line:#2D3748; --line-soft:#232C3B;
+    --accent:#8AADF2; --accent-ink:#0E1626; --accent-soft:#243655;
+    --ok:#5CD095; --ok-soft:#17311F; --bad:#F39183; --bad-soft:#3B201B; --warn:#E3B55B; --warn-soft:#3A2D14;
+    --grid:rgba(138,173,242,.09); --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11161F; --paper:#1A2130; --ink:#E9EDF3; --muted:#9BA6B9; --line:#2D3748; --line-soft:#232C3B;
+  --accent:#8AADF2; --accent-ink:#0E1626; --accent-soft:#243655;
+  --ok:#5CD095; --ok-soft:#17311F; --bad:#F39183; --bad-soft:#3B201B; --warn:#E3B55B; --warn-soft:#3A2D14;
+  --grid:rgba(138,173,242,.09); --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{scroll-padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
+body{min-height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.6;
+  padding-inline:16px;padding-block:0 calc(76px + env(safe-area-inset-bottom,0px));-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input,select{font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.wrap{max-width:640px;margin:0 auto;min-width:0}
+.hdr{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding-block:14px 10px;border-bottom:1px solid var(--line-soft)}
+.hdr h1{font-family:var(--font-display);font-weight:700;font-size:26px;line-height:1.1;margin:0;letter-spacing:.02em}
+.hdr .sub{font-size:12px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-top:4px}
+.count{text-align:right;font-variant-numeric:tabular-nums;min-width:0}
+.count b{display:block;font-size:22px;line-height:1.1;font-family:var(--font-display)}
+.count span{font-size:12px;color:var(--muted)}
+main{padding-block:16px;display:grid;gap:14px;min-width:0}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;min-width:0}
+.sheet{background-color:var(--paper);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:22px 22px;background-position:-1px -1px}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.between{justify-content:space-between}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;line-height:1;padding:5px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);background:var(--paper);white-space:nowrap}
+.chip.math{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+.chip.social{color:var(--warn);border-color:var(--warn);background:var(--warn-soft)}
+.chip.hard{color:var(--bad);border-color:var(--bad);background:var(--bad-soft)}
+.chip.review{color:var(--ok);border-color:var(--ok);background:var(--ok-soft)}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.num{font-variant-numeric:tabular-nums}
+.prog{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+.bar{flex:1;height:6px;border-radius:999px;background:var(--line-soft);overflow:hidden;min-width:60px}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:999px;transition:width .25s ease}
+.stem{font-size:17px;line-height:1.75;white-space:pre-wrap;word-break:break-word;margin:12px 0 4px;text-wrap:pretty}
+.fig{margin:8px auto 4px;max-width:320px}
+.fig svg{display:block;width:100%;height:auto;max-width:100%;color:var(--ink)}
+.opts{display:grid;gap:8px;margin-top:12px}
+.opt{display:flex;gap:10px;align-items:flex-start;text-align:left;width:100%;padding:11px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--paper);line-height:1.5;transition:border-color .12s,background .12s}
+.opt .k{flex:0 0 auto;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
+.opt .t{white-space:pre-wrap;word-break:break-word;min-width:0}
+.opt:not([disabled]):hover,.opt:not([disabled]):focus-visible{border-color:var(--accent);background:var(--accent-soft)}
+.opt[disabled]{cursor:default;opacity:.7}
+.opt.correct{opacity:1;border-color:var(--ok);background:var(--ok-soft)}
+.opt.correct .k{color:var(--ok)}
+.opt.wrong{opacity:1;border-color:var(--bad);background:var(--bad-soft)}
+.opt.wrong .k{color:var(--bad)}
+.verdict{margin-top:14px;padding:12px 14px;border-radius:10px;display:grid;gap:4px}
+.verdict.ok{background:var(--ok-soft);color:var(--ok)}
+.verdict.bad{background:var(--bad-soft);color:var(--bad)}
+.verdict b{font-size:17px}
+.verdict span{color:var(--ink);font-size:14px}
+.expl{margin-top:12px;border-left:3px solid var(--accent);padding:4px 0 4px 12px}
+.expl .lbl{font-size:12px;letter-spacing:.08em;color:var(--accent);font-weight:700}
+.expl p{margin:4px 0 0;white-space:pre-wrap;word-break:break-word;font-size:15px;line-height:1.7}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 16px;border-radius:10px;border:1.5px solid var(--line);background:var(--paper);font-weight:500;min-height:42px}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(1.05)}
+.btn.ok{border-color:var(--ok);color:var(--ok)}
+.btn.ok.on{background:var(--ok);color:var(--accent-ink)}
+.btn.danger{border-color:var(--bad);color:var(--bad)}
+.btn.grow{flex:1}
+.btn[disabled]{opacity:.5;cursor:default}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+@media (max-width:460px){.tiles{grid-template-columns:repeat(2,1fr)}}
+.tile{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px 12px 10px;min-width:0}
+.tile b{display:block;font-size:24px;line-height:1.1;font-family:var(--font-display);font-variant-numeric:tabular-nums}
+.tile span{font-size:12px;color:var(--muted)}
+h2{font-family:var(--font-display);font-size:19px;margin:6px 0 0;text-wrap:balance}
+h3{font-size:14px;color:var(--muted);letter-spacing:.06em;margin:8px 0 0;font-weight:500}
+.units{display:grid;gap:6px}
+.unit{display:grid;grid-template-columns:14px 1fr auto;gap:10px;align-items:center;padding:9px 10px;border:1px solid var(--line-soft);border-radius:10px;background:var(--paper);min-width:0}
+.unit .nm{min-width:0;font-size:15px;line-height:1.3}
+.unit .nm small{display:block;color:var(--muted);font-size:12px;margin-top:2px;font-variant-numeric:tabular-nums}
+.dot{width:12px;height:12px;border-radius:50%;background:var(--line);border:1px solid var(--line)}
+.dot.red{background:var(--bad);border-color:var(--bad)}
+.dot.yellow{background:var(--warn);border-color:var(--warn)}
+.dot.green{background:var(--ok);border-color:var(--ok)}
+.mini{font-size:13px;padding:6px 10px;min-height:32px;border-radius:8px}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.field{display:grid;gap:4px;margin-top:10px}
+.field label{font-size:14px}
+.field input[type=number]{width:120px}
+.field .hint{font-size:12px;color:var(--muted)}
+.check{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:15px}
+.check input{width:18px;height:18px;margin:0}
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--paper);border-top:1px solid var(--line);padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px))}
+.tabs .in{max-width:640px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.tab{display:grid;justify-items:center;gap:2px;padding:6px 4px;border-radius:10px;color:var(--muted);font-size:12px}
+.tab svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab[aria-current="page"]{color:var(--accent);background:var(--accent-soft)}
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:10px;font-size:14px;z-index:9;max-width:calc(100% - 32px);box-shadow:var(--shadow)}
+.empty{display:grid;gap:8px;text-align:center;padding:28px 12px;color:var(--muted)}
+.empty b{color:var(--ink);font-family:var(--font-display);font-size:20px}
+.wronglist{display:grid;gap:6px;margin-top:10px}
+.wronglist div{font-size:14px;padding:8px 10px;border-radius:8px;background:var(--bad-soft);color:var(--ink)}
+.wronglist small{color:var(--muted)}
+kbd{font:inherit;font-size:12px;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 5px;color:var(--muted)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="hdr">
+    <div>
+      <h1>會考每日練</h1>
+      <div class="sub">數學 · 社會 · 遺忘曲線</div>
+    </div>
+    <div class="count" id="countdown"><b>…</b><span>距 116 年會考</span></div>
+  </header>
+  <main id="view">
+    <section class="card empty"><b>載入題庫中</b><span>第一次打開要幾秒鐘。</span></section>
+  </main>
+</div>
+
+<nav class="tabs" aria-label="主要分頁"><div class="in">
+  <button class="tab" data-tab="today" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v15H4z"/><path d="M4 9h16M9 5V3M15 5V3M8 14l2.5 2.5L16 11"/></svg>今天</button>
+  <button class="tab" data-tab="progress"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg>進度</button>
+  <button class="tab" data-tab="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>設定</button>
+</div></nav>
+
+<script>
+/*@logic-start*/
+// ---------- Spaced repetition (Leitner boxes on a forgetting-curve schedule) ----------
+var EXAM_DATE = '2027-05-15';
+var INTERVALS = [1, 3, 7, 14, 30];   // days until the next review after the 1st, 2nd, ... correct answer
+var MASTER_BOX = 5;                  // correct on 5 spaced occasions -> learned
+var DEFAULT_SETTINGS = { mathNew: 5, socialNew: 5, reviewCap: 12, hardBias: false };
+var MATH_META = {
+  M01:[1,'整數的運算','A'],M02:[2,'分數的運算','A'],M03:[3,'一元一次方程式','B'],M04:[4,'二元一次聯立方程式','A'],
+  M05:[5,'二元一次方程式的圖形','B'],M06:[6,'比與比例式','C'],M07:[7,'一元一次不等式','A'],M08:[8,'線對稱與三視圖','C'],
+  M09:[9,'統計圖表與統計量','B'],M10:[10,'乘法公式與多項式','B'],M11:[11,'平方根與畢氏定理','A'],M12:[12,'因式分解與一元二次方程式','A'],
+  M13:[13,'數列與級數','A'],M14:[14,'函數','B'],M15:[15,'三角形的基本性質','A'],M16:[16,'平行與四邊形','B'],
+  M17:[17,'連比例與相似形','A'],M18:[18,'圓','A'],M19:[19,'幾何與證明','A'],M20:[20,'二次函數','A'],M21:[21,'統計與機率、立體圖形','A']
+};
+var AREAS = ['歷史', '地理', '公民'];
+
+function pad2(n) { return (n < 10 ? '0' : '') + n; }
+function toDateStr(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+function parseDate(s) { var p = s.split('-'); return new Date(+p[0], +p[1] - 1, +p[2], 12, 0, 0); }
+function addDays(s, n) { var d = parseDate(s); d.setDate(d.getDate() + n); return toDateStr(d); }
+function daysBetween(a, b) { return Math.round((parseDate(b) - parseDate(a)) / 86400000); }
+function hashStr(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+function newCard() { return { box: 0, due: null, seen: 0, correct: 0, wrong: 0, streak: 0, mastered: false, manual: false, last: null }; }
+function cardOf(cards, id) { var c = cards[id]; return c ? Object.assign(newCard(), c) : newCard(); }
+
+function applyAnswer(card, ok, today) {
+  var c = Object.assign(newCard(), card);
+  c.seen += 1; c.last = today;
+  if (ok) {
+    c.correct += 1; c.streak += 1;
+    c.box = Math.min(c.box + 1, MASTER_BOX);
+    if (c.box >= MASTER_BOX) { c.mastered = true; c.due = null; }
+    else c.due = addDays(today, INTERVALS[c.box - 1]);
+  } else {
+    c.wrong += 1; c.streak = 0; c.box = 0;
+    c.mastered = false; c.manual = false;
+    c.due = addDays(today, 1);
+  }
+  return c;
+}
+function setMastered(card, on, today) {
+  var c = Object.assign(newCard(), card);
+  if (on) { c.mastered = true; c.manual = true; c.due = null; }
+  else { c.mastered = false; c.manual = false; c.box = Math.max(1, Math.min(c.box, MASTER_BOX - 1)); c.due = addDays(today, 1); }
+  return c;
+}
+function isDue(card, today) { return !card.mastered && card.seen > 0 && !!card.due && card.due <= today; }
+function nextReviewText(card, today) {
+  if (card.mastered) return '已學會，不會再出。';
+  if (!card.due) return '';
+  var n = daysBetween(today, card.due);
+  if (n <= 1) return '明天再出一次。';
+  return n + ' 天後再出（' + card.due.slice(5).replace('-', '/') + '）。';
+}
+
+function unitStats(bank, cards) {
+  var st = {};
+  bank.forEach(function (q) {
+    var s = st[q.unit] || (st[q.unit] = { unit: q.unit, name: q.unit_name, subject: q.subject, area: q.area || null, tier: q.tier || null, num: q.unit_num || 0, total: 0, seen: 0, mastered: 0, correct: 0, wrong: 0, answered: 0, due: 0 });
+    s.total += 1;
+    var c = cards[q.id]; if (!c) return;
+    if (c.seen > 0) s.seen += 1;
+    if (c.mastered) s.mastered += 1;
+    s.correct += c.correct || 0; s.wrong += c.wrong || 0; s.answered = s.correct + s.wrong;
+  });
+  return st;
+}
+function light(s) {
+  if (!s || s.answered === 0) return 'none';
+  var acc = s.correct / s.answered;
+  if (s.answered >= 3 && acc < 0.6) return 'red';
+  if (s.answered >= 4 && acc >= 0.85) return 'green';
+  return 'yellow';
+}
+function weightOf(q, stats, settings) {
+  var w = q.subject === 'math' ? ({ A: 3, B: 2, C: 1 }[q.tier] || 2) : 2;
+  var s = stats[q.unit];
+  if (s && s.answered >= 2 && s.correct / s.answered < 0.6) w *= 1.6;
+  if (settings.hardBias) w *= (q.difficulty === '難' ? 1.6 : 1);
+  else w *= (q.difficulty === '難' ? 0.75 : 1);
+  return w;
+}
+function weightedTake(pool, rng, wfn) {
+  var total = 0, i;
+  for (i = 0; i < pool.length; i++) total += wfn(pool[i]);
+  if (total <= 0) return -1;
+  var r = rng() * total;
+  for (i = 0; i < pool.length; i++) { r -= wfn(pool[i]); if (r <= 0) return i; }
+  return pool.length - 1;
+}
+// Pick n questions without replacement; at most maxPerUnit per unit; social picks rotate across 歷史/地理/公民.
+function pickNew(pool, n, rng, wfn, maxPerUnit, balanceAreas) {
+  var out = [], perUnit = {}, perArea = {}, remaining = pool.slice();
+  while (out.length < n && remaining.length) {
+    var cand = remaining;
+    if (balanceAreas) {
+      var areas = AREAS.filter(function (a) { return remaining.some(function (q) { return q.area === a; }); });
+      if (!areas.length) break;
+      var minCount = Math.min.apply(null, areas.map(function (a) { return perArea[a] || 0; }));
+      var pickArea = areas.filter(function (a) { return (perArea[a] || 0) === minCount; });
+      var area = pickArea[Math.floor(rng() * pickArea.length)];
+      cand = remaining.filter(function (q) { return q.area === area; });
+    }
+    var idx = weightedTake(cand, rng, wfn);
+    if (idx < 0) break;
+    var q = cand[idx];
+    remaining.splice(remaining.indexOf(q), 1);
+    perUnit[q.unit] = (perUnit[q.unit] || 0) + 1;
+    if (q.area) perArea[q.area] = (perArea[q.area] || 0) + 1;
+    out.push(q);
+    if (perUnit[q.unit] >= maxPerUnit) remaining = remaining.filter(function (x) { return x.unit !== q.unit; });
+  }
+  return out;
+}
+function interleave(a, b) {
+  var out = [], i = 0;
+  while (i < a.length || i < b.length) { if (i < a.length) out.push(a[i]); if (i < b.length) out.push(b[i]); i++; }
+  return out;
+}
+function pickDaily(bank, cards, settings, today, exclude) {
+  var ex = exclude || {};
+  var due = bank.filter(function (q) { return !ex[q.id] && isDue(cardOf(cards, q.id), today); })
+    .sort(function (a, b) { return cardOf(cards, a.id).due.localeCompare(cardOf(cards, b.id).due) || a.id.localeCompare(b.id); });
+  var reviews = interleave(due.filter(function (q) { return q.subject === 'math'; }), due.filter(function (q) { return q.subject === 'social'; })).slice(0, settings.reviewCap);
+  var rng = mulberry32(hashStr(today + '|' + bank.length + '|' + Object.keys(ex).length));
+  var stats = unitStats(bank, cards);
+  var wfn = function (q) { return weightOf(q, stats, settings); };
+  var unseen = bank.filter(function (q) { var c = cards[q.id]; return !ex[q.id] && !(c && (c.seen > 0 || c.mastered)); });
+  var m = pickNew(unseen.filter(function (q) { return q.subject === 'math'; }), settings.mathNew, rng, wfn, 2, false);
+  var s = pickNew(unseen.filter(function (q) { return q.subject === 'social'; }), settings.socialNew, rng, wfn, 2, true);
+  return { reviews: reviews.map(function (q) { return q.id; }), fresh: interleave(m, s).map(function (q) { return q.id; }) };
+}
+function pickUnit(bank, cards, unit, n, rng) {
+  var pool = bank.filter(function (q) { return q.unit === unit && !cardOf(cards, q.id).mastered; });
+  var unseen = pool.filter(function (q) { return cardOf(cards, q.id).seen === 0; });
+  var seen = pool.filter(function (q) { return cardOf(cards, q.id).seen > 0; })
+    .sort(function (a, b) { var ca = cardOf(cards, a.id), cb = cardOf(cards, b.id); return (cb.wrong - cb.correct) - (ca.wrong - ca.correct); });
+  for (var i = unseen.length - 1; i > 0; i--) { var j = Math.floor(rng() * (i + 1)); var t = unseen[i]; unseen[i] = unseen[j]; unseen[j] = t; }
+  return unseen.concat(seen).slice(0, n).map(function (q) { return q.id; });
+}
+function computeStreak(days, today) {
+  var n = 0, d = today;
+  var did = function (x) { var day = days[x]; return !!(day && day.answered && Object.keys(day.answered).length); };
+  if (!did(d)) { d = addDays(d, -1); if (!did(d)) return 0; }
+  while (did(d)) { n++; d = addDays(d, -1); }
+  return n;
+}
+function summarize(bank, cards, days, today) {
+  var mastered = 0, dueNow = 0, seen = 0;
+  bank.forEach(function (q) { var c = cards[q.id]; if (!c) return; if (c.mastered) mastered++; if (c.seen > 0) seen++; if (isDue(c, today)) dueNow++; });
+  var ok = 0, all = 0;
+  for (var i = 0; i < 7; i++) {
+    var day = days[addDays(today, -i)]; if (!day || !day.answered) continue;
+    Object.keys(day.answered).forEach(function (id) { all++; if (day.answered[id].ok) ok++; });
+  }
+  return { mastered: mastered, due: dueNow, seen: seen, streak: computeStreak(days, today), acc7: all ? Math.round(ok / all * 100) : null, answered7: all };
+}
+/*@logic-end*/
+
+// ---------- Storage: db capability (cloud, synced across devices) with a browser-storage fallback ----------
+function localStore() {
+  var KEY = 'huikao-daily-v1';
+  function read() { try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { return {}; } }
+  function write(o) { try { localStorage.setItem(KEY, JSON.stringify(o)); } catch (e) {} }
+  return {
+    kind: 'local',
+    load: function () { var o = read(); return Promise.resolve({ cards: o.cards || {}, days: o.days || {}, settings: o.settings || null }); },
+    setCard: function (id, c) { var o = read(); (o.cards = o.cards || {})[id] = c; write(o); return Promise.resolve(); },
+    setDay: function (d, v) { var o = read(); (o.days = o.days || {})[d] = v; write(o); return Promise.resolve(); },
+    setSettings: function (s) { var o = read(); o.settings = s; write(o); return Promise.resolve(); },
+    reset: function () { write({}); return Promise.resolve(); }
+  };
+}
+function dbStore(db) {
+  var chains = {};
+  function write(path, data) {
+    var prev = chains[path] || Promise.resolve();
+    var p = prev.catch(function () {}).then(function () { return db.doc(path).set(data); });
+    chains[path] = p;
+    return p;
+  }
+  function readAll(col) {
+    return db.collection(col).limit(1000).get().then(function (snap) {
+      var o = {}; snap.docs.forEach(function (d) { if (d.exists) o[d.id] = d.data(); }); return o;
+    });
+  }
+  return {
+    kind: 'cloud',
+    load: function () {
+      return Promise.all([readAll('cards'), readAll('days'), db.doc('meta/settings').get()]).then(function (r) {
+        return { cards: r[0], days: r[1], settings: r[2].exists ? r[2].data() : null };
+      });
+    },
+    setCard: function (id, c) { return write('cards/' + id, c); },
+    setDay: function (d, v) { return write('days/' + d, v); },
+    setSettings: function (s) { return write('meta/settings', s); },
+    reset: function () {
+      return Promise.all([readAll('cards'), readAll('days')]).then(function (r) {
+        var paths = Object.keys(r[0]).map(function (id) { return 'cards/' + id; }).concat(Object.keys(r[1]).map(function (d) { return 'days/' + d; }));
+        var i = 0;
+        function step() {
+          var batch = paths.slice(i, i + 8); i += 8;
+          if (!batch.length) return Promise.resolve();
+          return Promise.all(batch.map(function (p) { return db.doc(p).delete(); })).then(step);
+        }
+        return step();
+      });
+    }
+  };
+}
+
+// ---------- App ----------
+var S = { bank: [], byId: {}, cards: {}, days: {}, settings: Object.assign({}, DEFAULT_SETTINGS), today: toDateStr(new Date()), tab: 'today', session: null, store: null, ready: false, error: null, confirmReset: false };
+var $view = document.getElementById('view');
+
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function safeSvg(svg) { if (!svg || !/^<svg[\s>]/i.test(svg) || /<script|<style|href|url\(|on\w+=|<image|<foreignObject/i.test(svg)) return ''; return svg; }
+function toast(msg) {
+  var t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t);
+  setTimeout(function () { t.remove(); }, 2600);
+}
+function saveErr(e) { toast('儲存失敗，這題的紀錄可能沒存到。'); if (window.console) console.warn(e); }
+
+function todayDoc() { return S.days[S.today]; }
+function ensureDaily() {
+  var day = todayDoc();
+  if (!day) {
+    var pick = pickDaily(S.bank, S.cards, S.settings, S.today);
+    day = { ids: pick.reviews.concat(pick.fresh), reviews: pick.reviews, answered: {}, created: S.today };
+    S.days[S.today] = day;
+    S.store.setDay(S.today, day).catch(saveErr);
+  }
+  var ids = day.ids.filter(function (id) { return S.byId[id]; });
+  var idx = 0; while (idx < ids.length && day.answered[ids[idx]]) idx++;
+  S.session = { kind: 'daily', ids: ids, idx: idx, answered: day.answered, reviews: {} };
+  (day.reviews || []).forEach(function (id) { S.session.reviews[id] = true; });
+}
+function addMore(n) {
+  var day = todayDoc(); var ex = {}; day.ids.forEach(function (id) { ex[id] = true; });
+  var settings = Object.assign({}, S.settings, { mathNew: Math.ceil(n / 2), socialNew: Math.floor(n / 2), reviewCap: 0 });
+  var pick = pickDaily(S.bank, S.cards, settings, S.today, ex);
+  if (!pick.fresh.length) { toast('題庫裡沒有還沒做過的新題了。'); return; }
+  day.ids = day.ids.concat(pick.fresh);
+  S.store.setDay(S.today, day).catch(saveErr);
+  S.session.ids = day.ids.filter(function (id) { return S.byId[id]; });
+  S.session.idx = S.session.ids.length - pick.fresh.length;
+  render();
+}
+function startUnit(unit) {
+  var ids = pickUnit(S.bank, S.cards, unit, 5, mulberry32(hashStr(unit + S.today + Object.keys(S.cards).length)));
+  if (!ids.length) { toast('這個單元的題目都學會了。'); return; }
+  S.session = { kind: 'unit', unit: unit, ids: ids, idx: 0, answered: {}, reviews: {} };
+  S.tab = 'today'; render(); window.scrollTo(0, 0);
+}
+function answer(pick) {
+  var ses = S.session, id = ses.ids[ses.idx], q = S.byId[id];
+  if (!q || ses.answered[id]) return;
+  var ok = pick === q.answer;
+  ses.answered[id] = { ok: ok, pick: pick, at: new Date().toISOString() };
+  S.cards[id] = applyAnswer(cardOf(S.cards, id), ok, S.today);
+  S.store.setCard(id, S.cards[id]).catch(saveErr);
+  if (ses.kind === 'daily') { var day = todayDoc(); day.answered = ses.answered; S.store.setDay(S.today, day).catch(saveErr); }
+  render();
+}
+function toggleMastered(id) {
+  var c = cardOf(S.cards, id);
+  S.cards[id] = setMastered(c, !c.mastered, S.today);
+  S.store.setCard(id, S.cards[id]).catch(saveErr);
+  toast(S.cards[id].mastered ? '已打勾，這題不會再出。' : '取消打勾，明天會再出一次。');
+  render();
+}
+
+function renderCountdown() {
+  var n = daysBetween(S.today, EXAM_DATE);
+  document.getElementById('countdown').innerHTML = '<b>' + (n >= 0 ? n + ' 天' : '已結束') + '</b><span>距 116 年會考 5/15</span>';
+}
+function renderTabs() {
+  document.querySelectorAll('.tab').forEach(function (b) { if (b.dataset.tab === S.tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+}
+function render() {
+  renderTabs(); renderCountdown();
+  if (S.error) { $view.innerHTML = '<section class="card empty"><b>題庫載入失敗</b><span>' + esc(S.error) + '</span><div><button class="btn primary" data-act="reload">重新載入</button></div></section>'; return; }
+  if (!S.ready) return;
+  if (S.tab === 'today') renderToday();
+  else if (S.tab === 'progress') renderProgress();
+  else renderSettings();
+}
+function subjectChip(q) { return '<span class="chip ' + q.subject + '">' + (q.subject === 'math' ? '數學' : esc(q.area || '社會')) + '</span>'; }
+function renderToday() {
+  var ses = S.session; if (!ses) ensureDaily(), ses = S.session;
+  var total = ses.ids.length, done = ses.ids.filter(function (id) { return ses.answered[id]; }).length;
+  var head = '';
+  if (ses.kind === 'unit') {
+    var meta = MATH_META[ses.unit]; var nm = meta ? meta[1] : (S.bank.filter(function (q) { return q.unit === ses.unit; })[0] || {}).unit_name;
+    head = '<div class="row between"><span class="chip">加練：' + esc(nm || ses.unit) + '</span><button class="btn mini" data-act="back-daily">回到今天的題目</button></div>';
+  }
+  if (!total) {
+    $view.innerHTML = head + '<section class="card empty"><b>今天沒有題目</b><span>題庫裡還沒做過的題目都做完了，或是設定的每日題數是 0。</span><div><button class="btn primary" data-act="tab" data-tab="settings">調整設定</button></div></section>';
+    return;
+  }
+  if (ses.idx >= total) { renderSummary(head, ses, total, done); return; }
+  var id = ses.ids[ses.idx], q = S.byId[id], a = ses.answered[id], card = cardOf(S.cards, id);
+  var isReview = !!ses.reviews[id];
+  var html = head + '<div class="prog num"><span>第 ' + (ses.idx + 1) + ' / ' + total + ' 題</span><div class="bar"><i style="width:' + Math.round(done / total * 100) + '%"></i></div><span>' + done + ' 完成</span></div>';
+  html += '<section class="card sheet">';
+  html += '<div class="row">' + subjectChip(q) + '<span class="chip">' + esc(q.unit_name) + '</span>' + (q.difficulty === '難' ? '<span class="chip hard">難</span>' : '<span class="chip">中等</span>') + (isReview ? '<span class="chip review">複習</span>' : '') + '</div>';
+  html += '<div class="stem">' + esc(q.stem) + '</div>';
+  var svg = safeSvg(q.figure_svg); if (svg) html += '<div class="fig">' + svg + '</div>';
+  html += '<div class="opts">';
+  q.options.forEach(function (o, i) {
+    var cls = 'opt'; if (a) { if (i === q.answer) cls += ' correct'; else if (i === a.pick) cls += ' wrong'; }
+    html += '<button class="' + cls + '" data-act="answer" data-i="' + i + '"' + (a ? ' disabled' : '') + '><span class="k">(' + 'ABCD'[i] + ')</span><span class="t">' + esc(o) + '</span></button>';
+  });
+  html += '</div>';
+  if (a) {
+    html += '<div class="verdict ' + (a.ok ? 'ok' : 'bad') + '"><b>' + (a.ok ? '答對了' : '答錯了，正確答案是 (' + 'ABCD'[q.answer] + ')') + '</b><span>' + esc(nextReviewText(card, S.today)) + '</span></div>';
+    html += '<div class="expl"><div class="lbl">詳解</div><p>' + esc(q.explanation) + '</p></div>';
+    html += '<div class="actions">';
+    if (a.ok || card.seen > 1) html += '<button class="btn ok' + (card.mastered ? ' on' : '') + '" data-act="master" data-id="' + esc(id) + '">' + (card.mastered ? '✓ 已學會（取消）' : '✓ 我確定會了') + '</button>';
+    html += '<button class="btn primary grow" data-act="next">' + (ses.idx + 1 >= total ? '看今天的結果' : '下一題') + '</button></div>';
+  } else {
+    html += '<p class="small muted" style="margin:14px 0 0">按鍵盤 <kbd>1</kbd>～<kbd>4</kbd> 也可以作答。</p>';
+  }
+  html += '</section>';
+  $view.innerHTML = html;
+}
+function renderSummary(head, ses, total, done) {
+  var ok = ses.ids.filter(function (id) { return ses.answered[id] && ses.answered[id].ok; }).length;
+  var wrong = ses.ids.filter(function (id) { return ses.answered[id] && !ses.answered[id].ok; });
+  var html = head + '<section class="card"><h2>' + (ses.kind === 'daily' ? '今天的題目做完了' : '這一輪做完了') + '</h2>';
+  html += '<div class="tiles" style="margin-top:12px"><div class="tile"><b>' + ok + '/' + done + '</b><span>答對</span></div><div class="tile"><b>' + (done ? Math.round(ok / done * 100) : 0) + '%</b><span>正確率</span></div>';
+  var sum = summarize(S.bank, S.cards, S.days, S.today);
+  html += '<div class="tile"><b>' + sum.streak + '</b><span>連續天數</span></div><div class="tile"><b>' + sum.mastered + '</b><span>已學會</span></div></div>';
+  if (wrong.length) {
+    html += '<h3 style="margin-top:14px">答錯的題目明天會再出</h3><div class="wronglist">' + wrong.map(function (id) { var q = S.byId[id]; return '<div>' + esc(q.unit_name) + ' <small>' + esc(q.topic || '') + '</small></div>'; }).join('') + '</div>';
+  } else if (done) {
+    html += '<p class="muted small" style="margin:12px 0 0">全對。答對的題目會在 1、3、7、14、30 天後再各出一次，五次都對就算學會。</p>';
+  }
+  html += '<div class="actions">';
+  if (ses.kind === 'daily') html += '<button class="btn primary" data-act="more" data-n="6">再加練 6 題</button><button class="btn" data-act="tab" data-tab="progress">看進度</button>';
+  else html += '<button class="btn primary" data-act="back-daily">回到今天的題目</button><button class="btn" data-act="unit" data-unit="' + esc(ses.unit) + '">這個單元再 5 題</button>';
+  html += '</div></section>';
+  $view.innerHTML = html;
+}
+function renderProgress() {
+  var sum = summarize(S.bank, S.cards, S.days, S.today);
+  var stats = unitStats(S.bank, S.cards);
+  var html = '<div class="tiles"><div class="tile"><b>' + sum.mastered + '</b><span>已學會</span></div><div class="tile"><b>' + sum.due + '</b><span>今天該複習</span></div><div class="tile"><b>' + sum.streak + '</b><span>連續天數</span></div><div class="tile"><b>' + (sum.acc7 == null ? '–' : sum.acc7 + '%') + '</b><span>近 7 天正確率</span></div></div>';
+  html += '<div class="legend"><span><i class="dot red"></i>紅：正確率低於 6 成</span><span><i class="dot yellow"></i>黃：還不穩</span><span><i class="dot green"></i>綠：穩了</span><span><i class="dot"></i>灰：還沒做過</span></div>';
+  function unitRow(s, label) {
+    var acc = s.answered ? Math.round(s.correct / s.answered * 100) + '%' : '–';
+    return '<div class="unit"><i class="dot ' + light(s) + '"></i><div class="nm">' + esc(label) + '<small>會 ' + s.mastered + ' / 做過 ' + s.seen + ' / 共 ' + s.total + ' 題 · 正確率 ' + acc + '</small></div><button class="btn mini" data-act="unit" data-unit="' + esc(s.unit) + '">練 5 題</button></div>';
+  }
+  html += '<h2>數學</h2><div class="units">';
+  Object.keys(MATH_META).forEach(function (u) {
+    var m = MATH_META[u], s = stats[u] || { unit: u, total: 0, seen: 0, mastered: 0, correct: 0, wrong: 0, answered: 0 };
+    html += unitRow(s, m[0] + '. ' + m[1] + (m[2] === 'A' ? '（必熟）' : ''));
+  });
+  html += '</div>';
+  AREAS.forEach(function (area) {
+    var list = Object.keys(stats).filter(function (u) { return stats[u].area === area; }).sort();
+    if (!list.length) return;
+    html += '<h2>社會 · ' + esc(area) + '</h2><div class="units">' + list.map(function (u) { return unitRow(stats[u], stats[u].name); }).join('') + '</div>';
+  });
+  $view.innerHTML = html;
+}
+function renderSettings() {
+  var st = S.settings, counts = { math: 0, social: 0 };
+  S.bank.forEach(function (q) { counts[q.subject]++; });
+  var html = '<section class="card"><h2>每天出幾題</h2>';
+  html += '<div class="field"><label for="mathNew">數學新題</label><input type="number" id="mathNew" min="0" max="20" value="' + st.mathNew + '"></div>';
+  html += '<div class="field"><label for="socialNew">社會新題</label><input type="number" id="socialNew" min="0" max="20" value="' + st.socialNew + '"></div>';
+  html += '<div class="field"><label for="reviewCap">每天最多複習幾題</label><input type="number" id="reviewCap" min="0" max="60" value="' + st.reviewCap + '"><span class="hint">到期的複習題會排在新題前面，超過上限的順延到明天。</span></div>';
+  html += '<label class="check"><input type="checkbox" id="hardBias"' + (st.hardBias ? ' checked' : '') + '>多出「難」的題目</label>';
+  html += '<div class="actions"><button class="btn primary" data-act="save-settings">儲存設定</button></div><p class="small muted" style="margin:10px 0 0">改了之後，明天的題組會照新設定出；今天已經排好的不變。</p></section>';
+  html += '<section class="card"><h2>怎麼算「學會」</h2><p class="small" style="margin:8px 0 0">答對後這題會在 1、3、7、14、30 天後各再出一次，五次都答對就自動打勾。答錯就回到起點，明天再出。你也可以在答對後自己按「我確定會了」直接打勾。</p>';
+  html += '<p class="small muted" style="margin:8px 0 0">題庫：數學 ' + counts.math + ' 題、社會 ' + counts.social + ' 題，只有中等與難題。紀錄' + (S.store.kind === 'cloud' ? '存在雲端，換裝置也會同步。' : '只存在這個瀏覽器裡。') + '</p></section>';
+  html += '<section class="card"><h2>清除紀錄</h2><p class="small muted" style="margin:8px 0 0">會刪掉所有作答與學會的紀錄，題庫不受影響。</p><div class="actions">';
+  if (S.confirmReset) html += '<button class="btn danger" data-act="reset-yes">確定清除</button><button class="btn" data-act="reset-no">取消</button>';
+  else html += '<button class="btn danger" data-act="reset">清除所有紀錄</button>';
+  html += '</div></section>';
+  $view.innerHTML = html;
+}
+
+document.addEventListener('click', function (e) {
+  var b = e.target.closest('[data-act],[data-tab]'); if (!b) return;
+  var act = b.dataset.act;
+  if (!act && b.dataset.tab) { S.tab = b.dataset.tab; S.confirmReset = false; render(); window.scrollTo(0, 0); return; }
+  if (act === 'tab') { S.tab = b.dataset.tab; render(); window.scrollTo(0, 0); }
+  else if (act === 'answer') answer(+b.dataset.i);
+  else if (act === 'next') { S.session.idx++; render(); window.scrollTo(0, 0); }
+  else if (act === 'master') toggleMastered(b.dataset.id);
+  else if (act === 'more') addMore(+b.dataset.n);
+  else if (act === 'unit') startUnit(b.dataset.unit);
+  else if (act === 'back-daily') { ensureDaily(); render(); window.scrollTo(0, 0); }
+  else if (act === 'reload') location.reload();
+  else if (act === 'save-settings') {
+    var v = function (id, lo, hi) { var n = parseInt(document.getElementById(id).value, 10); return isNaN(n) ? lo : Math.max(lo, Math.min(hi, n)); };
+    S.settings = { mathNew: v('mathNew', 0, 20), socialNew: v('socialNew', 0, 20), reviewCap: v('reviewCap', 0, 60), hardBias: document.getElementById('hardBias').checked };
+    S.store.setSettings(S.settings).then(function () { toast('設定已儲存。'); }).catch(saveErr);
+  }
+  else if (act === 'reset') { S.confirmReset = true; render(); }
+  else if (act === 'reset-no') { S.confirmReset = false; render(); }
+  else if (act === 'reset-yes') {
+    S.confirmReset = false;
+    S.store.reset().then(function () { S.cards = {}; S.days = {}; S.session = null; ensureDaily(); toast('紀錄已清除。'); S.tab = 'today'; render(); }).catch(saveErr);
+  }
+});
+document.addEventListener('keydown', function (e) {
+  if (S.tab !== 'today' || !S.session || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement && document.activeElement.tagName)) return;
+  var ses = S.session, id = ses.ids[ses.idx]; if (!id) return;
+  var k = e.key.toUpperCase();
+  if (!ses.answered[id] && /^[1-4]$/.test(k)) answer(+k - 1);
+  else if (!ses.answered[id] && /^[A-D]$/.test(k)) answer('ABCD'.indexOf(k));
+  else if (ses.answered[id] && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); ses.idx++; render(); window.scrollTo(0, 0); }
+});
+document.addEventListener('visibilitychange', function () {
+  if (document.visibilityState !== 'visible' || !S.ready) return;
+  var now = toDateStr(new Date());
+  if (now !== S.today) { S.today = now; S.session = null; ensureDaily(); render(); }
+});
+
+function boot(hot) {
+  S.tab = (hot && hot.tab) || (location.hash === '#progress' ? 'progress' : location.hash === '#settings' ? 'settings' : 'today');
+  renderCountdown(); renderTabs();
+  var bankP = fetch('questions.json', { cache: 'no-cache' }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+  var storeP = Promise.resolve().then(function () { return window.claude && window.claude.use ? window.claude.use('db') : null; })
+    .catch(function () { return null; }).then(function (db) { return db ? dbStore(db) : localStore(); });
+  Promise.all([bankP, storeP]).then(function (r) {
+    var data = r[0]; S.bank = Array.isArray(data) ? data : (data.questions || []);
+    S.byId = {}; S.bank.forEach(function (q) { S.byId[q.id] = q; });
+    S.store = r[1];
+    return S.store.load().catch(function (e) { if (window.console) console.warn(e); return { cards: {}, days: {}, settings: null }; });
+  }).then(function (st) {
+    S.cards = st.cards || {}; S.days = st.days || {};
+    S.settings = Object.assign({}, DEFAULT_SETTINGS, st.settings || {});
+    S.ready = true; ensureDaily();
+    if (hot && hot.idx != null && S.session && hot.idx <= S.session.ids.length) S.session.idx = hot.idx;
+    render();
+  }).catch(function (e) { S.error = e && e.message ? e.message : String(e); render(); });
+}
+if (window.claude && window.claude.hot && window.claude.hot.snapshot) window.claude.hot.snapshot(function () { return { tab: S.tab, idx: S.session ? S.session.idx : null }; });
+if (window.claude && window.claude.hot && window.claude.hot.ready) window.claude.hot.ready(boot); else boot((window.claude && window.claude.hot && window.claude.hot.data) || {});
+</script>
