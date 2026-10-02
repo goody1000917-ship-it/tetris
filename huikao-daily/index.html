@@ -157,7 +157,12 @@ kbd{font:inherit;font-size:12px;border:1px solid var(--line);border-bottom-width
 var EXAM_DATE = '2027-05-15';
 var INTERVALS = [1, 3, 7, 14, 30];   // days until the next review after the 1st, 2nd, ... correct answer
 var MASTER_BOX = 5;                  // correct on 5 spaced occasions -> learned
-var DEFAULT_SETTINGS = { mathNew: 5, socialNew: 5, reviewCap: 12, hardBias: false };
+var DEFAULT_SETTINGS = { budget: 20, mathNew: 4, socialNew: 4, hardBias: false };
+function normalizeSettings(s) {
+  var o = Object.assign({}, DEFAULT_SETTINGS, s || {});
+  if (!(o.budget >= 1)) o.budget = DEFAULT_SETTINGS.budget;   // older saved settings had reviewCap instead
+  return { budget: Math.max(4, Math.min(60, o.budget | 0)), mathNew: Math.max(0, Math.min(10, o.mathNew | 0)), socialNew: Math.max(0, Math.min(10, o.socialNew | 0)), hardBias: !!o.hardBias };
+}
 var MATH_META = {
   M01:[1,'整數的運算','A'],M02:[2,'分數的運算','A'],M03:[3,'一元一次方程式','B'],M04:[4,'二元一次聯立方程式','A'],
   M05:[5,'二元一次方程式的圖形','B'],M06:[6,'比與比例式','C'],M07:[7,'一元一次不等式','A'],M08:[8,'線對稱與三視圖','C'],
@@ -272,17 +277,23 @@ function interleave(a, b) {
   while (i < a.length || i < b.length) { if (i < a.length) out.push(a[i]); if (i < b.length) out.push(b[i]); i++; }
   return out;
 }
+// A day has a question budget. Due reviews come first (the most overdue first); whatever room is left goes to new
+// questions, split between math and social and capped per subject. So a heavy review day automatically means
+// fewer new questions, and the review backlog never piles up past a few questions.
 function pickDaily(bank, cards, settings, today, exclude) {
   var ex = exclude || {};
   var due = bank.filter(function (q) { return !ex[q.id] && isDue(cardOf(cards, q.id), today); })
     .sort(function (a, b) { return cardOf(cards, a.id).due.localeCompare(cardOf(cards, b.id).due) || a.id.localeCompare(b.id); });
-  var reviews = interleave(due.filter(function (q) { return q.subject === 'math'; }), due.filter(function (q) { return q.subject === 'social'; })).slice(0, settings.reviewCap);
+  var reviews = interleave(due.filter(function (q) { return q.subject === 'math'; }), due.filter(function (q) { return q.subject === 'social'; })).slice(0, settings.budget);
+  var slots = Math.max(0, settings.budget - reviews.length);
+  var mWant = Math.min(settings.mathNew, Math.ceil(slots / 2)), sWant = Math.min(settings.socialNew, slots - mWant);
+  if (mWant + sWant < slots) { mWant = Math.min(settings.mathNew, slots - sWant); sWant = Math.min(settings.socialNew, slots - mWant); }
   var rng = mulberry32(hashStr(today + '|' + bank.length + '|' + Object.keys(ex).length));
   var stats = unitStats(bank, cards);
   var wfn = function (q) { return weightOf(q, stats, settings); };
   var unseen = bank.filter(function (q) { var c = cards[q.id]; return !ex[q.id] && !(c && (c.seen > 0 || c.mastered)); });
-  var m = pickNew(unseen.filter(function (q) { return q.subject === 'math'; }), settings.mathNew, rng, wfn, 2, false);
-  var s = pickNew(unseen.filter(function (q) { return q.subject === 'social'; }), settings.socialNew, rng, wfn, 2, true);
+  var m = pickNew(unseen.filter(function (q) { return q.subject === 'math'; }), mWant, rng, wfn, 2, false);
+  var s = pickNew(unseen.filter(function (q) { return q.subject === 'social'; }), sWant, rng, wfn, 2, true);
   return { reviews: reviews.map(function (q) { return q.id; }), fresh: interleave(m, s).map(function (q) { return q.id; }) };
 }
 function pickUnit(bank, cards, unit, n, rng) {
@@ -392,13 +403,16 @@ function ensureDaily() {
 }
 function addMore(n) {
   var day = todayDoc(); var ex = {}; day.ids.forEach(function (id) { ex[id] = true; });
-  var settings = Object.assign({}, S.settings, { mathNew: Math.ceil(n / 2), socialNew: Math.floor(n / 2), reviewCap: 0 });
+  var settings = Object.assign({}, S.settings, { budget: n, mathNew: Math.ceil(n / 2), socialNew: Math.floor(n / 2) });
   var pick = pickDaily(S.bank, S.cards, settings, S.today, ex);
-  if (!pick.fresh.length) { toast('題庫裡沒有還沒做過的新題了。'); return; }
-  day.ids = day.ids.concat(pick.fresh);
+  var extra = pick.reviews.concat(pick.fresh);   // reviews that rolled over today come first, then new questions
+  if (!extra.length) { toast('題庫裡沒有還沒做過的新題了。'); return; }
+  day.ids = day.ids.concat(extra);
+  day.reviews = (day.reviews || []).concat(pick.reviews);
   S.store.setDay(S.today, day).catch(saveErr);
+  pick.reviews.forEach(function (id) { S.session.reviews[id] = true; });
   S.session.ids = day.ids.filter(function (id) { return S.byId[id]; });
-  S.session.idx = S.session.ids.length - pick.fresh.length;
+  S.session.idx = S.session.ids.length - extra.length;
   render();
 }
 function startUnit(unit) {
@@ -456,7 +470,8 @@ function renderToday() {
   if (ses.idx >= total) { renderSummary(head, ses, total, done); return; }
   var id = ses.ids[ses.idx], q = S.byId[id], a = ses.answered[id], card = cardOf(S.cards, id);
   var isReview = !!ses.reviews[id];
-  var html = head + '<div class="prog num"><span>第 ' + (ses.idx + 1) + ' / ' + total + ' 題</span><div class="bar"><i style="width:' + Math.round(done / total * 100) + '%"></i></div><span>' + done + ' 完成</span></div>';
+  var nRev = ses.ids.filter(function (x) { return ses.reviews[x]; }).length;
+  var html = head + '<div class="prog num"><span>第 ' + (ses.idx + 1) + ' / ' + total + ' 題</span><div class="bar"><i style="width:' + Math.round(done / total * 100) + '%"></i></div><span>' + (ses.kind === 'daily' ? '複習 ' + nRev + ' · 新題 ' + (total - nRev) : done + ' 完成') + '</span></div>';
   html += '<section class="card sheet">';
   html += '<div class="row">' + subjectChip(q) + '<span class="chip">' + esc(q.unit_name) + '</span>' + (q.difficulty === '難' ? '<span class="chip hard">難</span>' : '<span class="chip">中等</span>') + (isReview ? '<span class="chip review">複習</span>' : '') + '</div>';
   html += '<div class="stem">' + esc(q.stem) + '</div>';
@@ -523,12 +538,12 @@ function renderSettings() {
   var st = S.settings, counts = { math: 0, social: 0 };
   S.bank.forEach(function (q) { counts[q.subject]++; });
   var html = '<section class="card"><h2>每天出幾題</h2>';
-  html += '<div class="field"><label for="mathNew">數學新題</label><input type="number" id="mathNew" min="0" max="20" value="' + st.mathNew + '"></div>';
-  html += '<div class="field"><label for="socialNew">社會新題</label><input type="number" id="socialNew" min="0" max="20" value="' + st.socialNew + '"></div>';
-  html += '<div class="field"><label for="reviewCap">每天最多複習幾題</label><input type="number" id="reviewCap" min="0" max="60" value="' + st.reviewCap + '"><span class="hint">到期的複習題會排在新題前面，超過上限的順延到明天。</span></div>';
+  html += '<div class="field"><label for="budget">每天大約幾題</label><input type="number" id="budget" min="4" max="60" value="' + st.budget + '"><span class="hint">到期的複習題一定先出，剩下的名額才出新題。複習多的日子新題就自動變少，所以不會爆量。</span></div>';
+  html += '<div class="field"><label for="mathNew">數學新題上限</label><input type="number" id="mathNew" min="0" max="10" value="' + st.mathNew + '"></div>';
+  html += '<div class="field"><label for="socialNew">社會新題上限</label><input type="number" id="socialNew" min="0" max="10" value="' + st.socialNew + '"></div>';
   html += '<label class="check"><input type="checkbox" id="hardBias"' + (st.hardBias ? ' checked' : '') + '>多出「難」的題目</label>';
   html += '<div class="actions"><button class="btn primary" data-act="save-settings">儲存設定</button></div><p class="small muted" style="margin:10px 0 0">改了之後，明天的題組會照新設定出；今天已經排好的不變。</p></section>';
-  html += '<section class="card"><h2>怎麼算「學會」</h2><p class="small" style="margin:8px 0 0">答對後這題會在 1、3、7、14、30 天後各再出一次，五次都答對就自動打勾。答錯就回到起點，明天再出。你也可以在答對後自己按「我確定會了」直接打勾。</p>';
+  html += '<section class="card"><h2>怎麼算「學會」</h2><p class="small" style="margin:8px 0 0">答對後這題會在 1、3、7、14、30 天後各再出一次，間隔越拉越長，剛好在快忘記的時候出現。五次都答對就自動打勾。答錯就回到起點，明天再出。你也可以在答對後自己按「我確定會了」直接打勾。</p>';
   html += '<p class="small muted" style="margin:8px 0 0">題庫：數學 ' + counts.math + ' 題、社會 ' + counts.social + ' 題，只有中等與難題。紀錄' + (S.store.kind === 'cloud' ? '存在雲端，換裝置也會同步。' : '只存在這個瀏覽器裡。') + '</p></section>';
   html += '<section class="card"><h2>清除紀錄</h2><p class="small muted" style="margin:8px 0 0">會刪掉所有作答與學會的紀錄，題庫不受影響。</p><div class="actions">';
   if (S.confirmReset) html += '<button class="btn danger" data-act="reset-yes">確定清除</button><button class="btn" data-act="reset-no">取消</button>';
@@ -551,7 +566,7 @@ document.addEventListener('click', function (e) {
   else if (act === 'reload') location.reload();
   else if (act === 'save-settings') {
     var v = function (id, lo, hi) { var n = parseInt(document.getElementById(id).value, 10); return isNaN(n) ? lo : Math.max(lo, Math.min(hi, n)); };
-    S.settings = { mathNew: v('mathNew', 0, 20), socialNew: v('socialNew', 0, 20), reviewCap: v('reviewCap', 0, 60), hardBias: document.getElementById('hardBias').checked };
+    S.settings = normalizeSettings({ budget: v('budget', 4, 60), mathNew: v('mathNew', 0, 10), socialNew: v('socialNew', 0, 10), hardBias: document.getElementById('hardBias').checked });
     S.store.setSettings(S.settings).then(function () { toast('設定已儲存。'); }).catch(saveErr);
   }
   else if (act === 'reset') { S.confirmReset = true; render(); }
@@ -589,7 +604,7 @@ function boot(hot) {
     return S.store.load().catch(function (e) { if (window.console) console.warn(e); return { cards: {}, days: {}, settings: null }; });
   }).then(function (st) {
     S.cards = st.cards || {}; S.days = st.days || {};
-    S.settings = Object.assign({}, DEFAULT_SETTINGS, st.settings || {});
+    S.settings = normalizeSettings(st.settings);
     S.ready = true; ensureDaily();
     if (hot && hot.idx != null && S.session && hot.idx <= S.session.ids.length) S.session.idx = hot.idx;
     render();

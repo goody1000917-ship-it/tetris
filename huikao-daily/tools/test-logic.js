@@ -30,12 +30,12 @@ const tiers = {M01:'A',M02:'A',M03:'B',M06:'C',M12:'A',M18:'A',M20:'A'};
 Object.keys(tiers).forEach((u, ui) => { for (let i = 1; i <= 10; i++) bank.push({ id: u + '-' + String(i).padStart(2,'0'), subject:'math', unit:u, unit_num: ui+1, unit_name:'math '+u, tier:tiers[u], difficulty: i%3?'中':'難', stem:'s', options:['a','b','c','d'], answer:0, explanation:'e' }); });
 const soc = {H01:'歷史',H02:'歷史',H03:'歷史',G01:'地理',G02:'地理',C01:'公民'};
 Object.keys(soc).forEach(u => { for (let i = 1; i <= 8; i++) bank.push({ id: u + '-' + String(i).padStart(2,'0'), subject:'social', unit:u, unit_name:'soc '+u, area:soc[u], difficulty: i%2?'中':'難', stem:'s', options:['a','b','c','d'], answer:1, explanation:'e' }); });
-const settings = Object.assign({}, L.DEFAULT_SETTINGS);
+const settings = L.normalizeSettings({ budget: 20, mathNew: 5, socialNew: 5 });
 const cards = {};
 const p1 = L.pickDaily(bank, cards, settings, t);
 const p2 = L.pickDaily(bank, cards, settings, t);
 assert.deepEqual(p1, p2, 'deterministic per day');
-assert.equal(p1.reviews.length, 0); assert.equal(p1.fresh.length, 10);
+assert.equal(p1.reviews.length, 0); assert.equal(p1.fresh.length, 10, 'budget 20, caps 5+5 -> 10 new');
 const fm = p1.fresh.filter(id => id[0]==='M'), fs_ = p1.fresh.filter(id => id[0]!=='M');
 assert.equal(fm.length, 5); assert.equal(fs_.length, 5);
 const perUnit = {}; p1.fresh.forEach(id => { const u = id.slice(0,3); perUnit[u] = (perUnit[u]||0)+1; assert.ok(perUnit[u] <= 2, 'max 2 per unit'); });
@@ -46,15 +46,20 @@ assert.equal(new Set(p1.fresh).size, 10);
 p1.fresh.forEach((id, i) => { cards[id] = L.applyAnswer(L.cardOf(cards, id), i >= 3, t); });
 const nextDay = L.addDays(t, 1);
 const p3 = L.pickDaily(bank, cards, settings, nextDay);
-assert.equal(p3.reviews.length, 10, 'all 10 due next day (3 wrong -> +1d, 7 right -> +1d)');
+assert.equal(p3.reviews.length, 10, 'all 10 due next day (3 wrong -> +1d, 7 right -> +1d)'); assert.equal(p3.fresh.length, 10, '10 slots left of 20 -> 5+5 new');
 assert.ok(p3.fresh.every(id => !cards[id]), 'fresh excludes seen');
 assert.ok(!p3.reviews.some(id => p3.fresh.includes(id)));
 // reviewCap
-const p4 = L.pickDaily(bank, cards, Object.assign({}, settings, {reviewCap: 4}), nextDay);
-assert.equal(p4.reviews.length, 4);
+const p4 = L.pickDaily(bank, cards, Object.assign({}, settings, {budget: 4}), nextDay);
+assert.equal(p4.reviews.length, 4); assert.equal(p4.fresh.length, 0, 'reviews fill the whole budget -> no new');
+const p4b = L.pickDaily(bank, cards, Object.assign({}, settings, {budget: 13}), nextDay);
+assert.equal(p4b.reviews.length, 10); assert.equal(p4b.fresh.length, 3, '3 slots -> 2 math + 1 social');
+assert.equal(p4b.fresh.filter(id => id[0]==='M').length, 2);
+const p4c = L.pickDaily(bank, cards, Object.assign({}, settings, {budget: 20, mathNew: 1}), nextDay);
+assert.equal(p4c.fresh.length, 6, 'math capped at 1 -> social takes up to its cap 5');
 // exclude set used by addMore
 const ex = {}; p3.reviews.concat(p3.fresh).forEach(id => ex[id] = true);
-const p5 = L.pickDaily(bank, cards, Object.assign({}, settings, {mathNew:3, socialNew:3, reviewCap:0}), nextDay, ex);
+const p5 = L.pickDaily(bank, cards, Object.assign({}, settings, {budget: 6, mathNew:3, socialNew:3}), nextDay, ex);
 assert.equal(p5.reviews.length, 0); assert.equal(p5.fresh.length, 6); assert.ok(p5.fresh.every(id => !ex[id]));
 // weakness weighting: unit with low accuracy gets more weight
 const stats = L.unitStats(bank, cards);
@@ -71,4 +76,5 @@ const sum = L.summarize(bank, cards, days, t);
 assert.equal(sum.seen, 10); assert.equal(sum.acc7, 67); assert.equal(sum.answered7, 3);
 // light
 assert.equal(L.light({answered:0}), 'none'); assert.equal(L.light({answered:3, correct:1}), 'red'); assert.equal(L.light({answered:4, correct:4}), 'green'); assert.equal(L.light({answered:2, correct:1}), 'yellow');
+const ns = L.normalizeSettings({mathNew:5, socialNew:5, reviewCap:12}); assert.equal(ns.budget, 20, 'old settings get a budget'); assert.equal(L.normalizeSettings(null).mathNew, 4);
 console.log('all logic tests passed; weak unit example:', weakUnit, JSON.stringify(areaCount));
