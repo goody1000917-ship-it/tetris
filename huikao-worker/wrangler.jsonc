@@ -1,0 +1,28 @@
+{
+  // 會考每日練 sync API (Cloudflare Worker + D1), same shape as leaderboard-worker.
+  // First time:  cd huikao-worker && npx wrangler@latest d1 create huikao-daily   -> paste database_id below
+  //              npx wrangler@latest d1 migrations apply huikao-daily --remote
+  // Deploy:      npx wrangler@latest deploy
+  "name": "huikao-daily-api",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-18",
+  "workers_dev": false,
+  "routes": [
+    { "pattern": "huikao-api.happygoody.net", "custom_domain": true }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "huikao-daily",
+      "database_id": "REPLACE_WITH_ID_FROM_wrangler_d1_create",
+      "migrations_dir": "migrations"
+    }
+  ],
+  // One student answers ~20 questions a day (about 40 writes), so these mostly guard the free D1 quotas against abuse.
+  "ratelimits": [
+    { "name": "WRITE_LIMIT", "namespace_id": "2201", "simple": { "limit": 60, "period": 60 } },
+    { "name": "READ_LIMIT", "namespace_id": "2202", "simple": { "limit": 60, "period": 60 } },
+    { "name": "GLOBAL_LIMIT", "namespace_id": "2203", "simple": { "limit": 300, "period": 60 } }
+  ],
+  "observability": { "enabled": true }
+}

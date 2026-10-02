@@ -1,0 +1,14 @@
+{
+  "name": "會考每日練",
+  "short_name": "每日練",
+  "description": "每天照遺忘曲線出數學與社會的會考題",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F1F3F6",
+  "theme_color": "#2C58B4",
+  "lang": "zh-TW",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

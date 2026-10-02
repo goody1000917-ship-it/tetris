@@ -13,6 +13,7 @@
   --grid:rgba(44,88,180,.07); --shadow:0 1px 2px rgba(27,36,48,.06),0 8px 24px rgba(27,36,48,.06);
   --font-body:"Noto Sans TC",system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;
   --font-display:"LXGW WenKai TC","Noto Sans TC","PingFang TC",serif;
+  --font-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   --radius:14px;
 }
 @media (prefers-color-scheme: dark){
@@ -33,16 +34,15 @@
 }
 *{box-sizing:border-box}
 html{scroll-padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
-body{min-height:100%}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.6;
-  padding-inline:16px;padding-block:0 calc(76px + env(safe-area-inset-bottom,0px));-webkit-text-size-adjust:100%}
-button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+body{min-height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.6;
+  padding-inline:16px;padding-block:0 calc(80px + env(safe-area-inset-bottom,0px));-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
 button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-input,select{font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+input,select{font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:8px 10px;max-width:100%}
 .wrap{max-width:640px;margin:0 auto;min-width:0}
 .hdr{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding-block:14px 10px;border-bottom:1px solid var(--line-soft)}
 .hdr h1{font-family:var(--font-display);font-weight:700;font-size:26px;line-height:1.1;margin:0;letter-spacing:.02em}
-.hdr .sub{font-size:12px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-top:4px}
+.hdr .sub{font-size:12px;color:var(--muted);letter-spacing:.06em;margin-top:4px}
 .count{text-align:right;font-variant-numeric:tabular-nums;min-width:0}
 .count b{display:block;font-size:22px;line-height:1.1;font-family:var(--font-display)}
 .count span{font-size:12px;color:var(--muted)}
@@ -56,6 +56,8 @@ main{padding-block:16px;display:grid;gap:14px;min-width:0}
 .chip.social{color:var(--warn);border-color:var(--warn);background:var(--warn-soft)}
 .chip.hard{color:var(--bad);border-color:var(--bad);background:var(--bad-soft)}
 .chip.review{color:var(--ok);border-color:var(--ok);background:var(--ok-soft)}
+button.chip{cursor:pointer;min-height:30px}
+button.chip.on{color:var(--accent-ink);background:var(--accent);border-color:var(--accent)}
 .muted{color:var(--muted)}
 .small{font-size:13px}
 .num{font-variant-numeric:tabular-nums}
@@ -80,6 +82,8 @@ main{padding-block:16px;display:grid;gap:14px;min-width:0}
 .verdict.bad{background:var(--bad-soft);color:var(--bad)}
 .verdict b{font-size:17px}
 .verdict span{color:var(--ink);font-size:14px}
+.why{margin-top:10px;display:grid;gap:6px}
+.why .lbl{font-size:13px;color:var(--muted)}
 .expl{margin-top:12px;border-left:3px solid var(--accent);padding:4px 0 4px 12px}
 .expl .lbl{font-size:12px;letter-spacing:.08em;color:var(--accent);font-weight:700}
 .expl p{margin:4px 0 0;white-space:pre-wrap;word-break:break-word;font-size:15px;line-height:1.7}
@@ -91,6 +95,7 @@ main{padding-block:16px;display:grid;gap:14px;min-width:0}
 .btn.ok{border-color:var(--ok);color:var(--ok)}
 .btn.ok.on{background:var(--ok);color:var(--accent-ink)}
 .btn.danger{border-color:var(--bad);color:var(--bad)}
+.btn.quiet{border-color:transparent;color:var(--muted)}
 .btn.grow{flex:1}
 .btn[disabled]{opacity:.5;cursor:default}
 .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
@@ -111,18 +116,31 @@ h3{font-size:14px;color:var(--muted);letter-spacing:.06em;margin:8px 0 0;font-we
 .mini{font-size:13px;padding:6px 10px;min-height:32px;border-radius:8px}
 .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
 .legend span{display:inline-flex;align-items:center;gap:5px}
+.strip{display:grid;grid-template-columns:repeat(14,1fr);gap:4px;margin-top:8px}
+.strip i{display:block;aspect-ratio:1;border-radius:4px;background:var(--line-soft);border:1px solid var(--line-soft)}
+.strip i.l1{background:var(--accent-soft);border-color:var(--accent-soft)}
+.strip i.l2{background:var(--accent);border-color:var(--accent);opacity:.65}
+.strip i.l3{background:var(--accent);border-color:var(--accent)}
+.strip i.today{outline:2px solid var(--ink);outline-offset:1px}
+.wrongs{display:grid;gap:8px}
+.wrong{display:grid;gap:6px;padding:10px 12px;border:1px solid var(--line-soft);border-radius:10px;background:var(--paper);min-width:0}
+.wrong .stem-s{font-size:14px;line-height:1.5;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.wrong .meta{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .field{display:grid;gap:4px;margin-top:10px}
 .field label{font-size:14px}
 .field input[type=number]{width:120px}
 .field .hint{font-size:12px;color:var(--muted)}
 .check{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:15px}
 .check input{width:18px;height:18px;margin:0}
+.code{font-family:var(--font-mono);font-size:14px;letter-spacing:.04em;word-break:break-all;padding:10px 12px;border:1px dashed var(--line);border-radius:8px;background:var(--bg);user-select:all;-webkit-user-select:all}
+.notice{padding:10px 12px;border-radius:10px;background:var(--warn-soft);color:var(--ink);font-size:14px}
 .tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--paper);border-top:1px solid var(--line);padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px))}
-.tabs .in{max-width:640px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
-.tab{display:grid;justify-items:center;gap:2px;padding:6px 4px;border-radius:10px;color:var(--muted);font-size:12px}
+.tabs .in{max-width:640px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.tab{display:grid;justify-items:center;gap:2px;padding:6px 4px;border-radius:10px;color:var(--muted);font-size:12px;position:relative}
 .tab svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .tab[aria-current="page"]{color:var(--accent);background:var(--accent-soft)}
-.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:10px;font-size:14px;z-index:9;max-width:calc(100% - 32px);box-shadow:var(--shadow)}
+.tab .badge{position:absolute;top:2px;right:calc(50% - 22px);min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--bad);color:#fff;font-size:11px;line-height:18px;text-align:center;font-variant-numeric:tabular-nums}
+.toast{position:fixed;left:50%;bottom:calc(88px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:10px;font-size:14px;z-index:9;max-width:calc(100% - 32px);box-shadow:var(--shadow)}
 .empty{display:grid;gap:8px;text-align:center;padding:28px 12px;color:var(--muted)}
 .empty b{color:var(--ink);font-family:var(--font-display);font-size:20px}
 .wronglist{display:grid;gap:6px;margin-top:10px}
@@ -147,6 +165,7 @@ kbd{font:inherit;font-size:12px;border:1px solid var(--line);border-bottom-width
 
 <nav class="tabs" aria-label="主要分頁"><div class="in">
   <button class="tab" data-tab="today" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v15H4z"/><path d="M4 9h16M9 5V3M15 5V3M8 14l2.5 2.5L16 11"/></svg>今天</button>
+  <button class="tab" data-tab="wrong" id="tab-wrong"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5z"/><path d="M9 9l6 6M15 9l-6 6"/></svg>錯題</button>
   <button class="tab" data-tab="progress"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg>進度</button>
   <button class="tab" data-tab="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>設定</button>
 </div></nav>
@@ -158,11 +177,7 @@ var EXAM_DATE = '2027-05-15';
 var INTERVALS = [1, 3, 7, 14, 30];   // days until the next review after the 1st, 2nd, ... correct answer
 var MASTER_BOX = 5;                  // correct on 5 spaced occasions -> learned
 var DEFAULT_SETTINGS = { budget: 20, mathNew: 4, socialNew: 4, hardBias: false };
-function normalizeSettings(s) {
-  var o = Object.assign({}, DEFAULT_SETTINGS, s || {});
-  if (!(o.budget >= 1)) o.budget = DEFAULT_SETTINGS.budget;   // older saved settings had reviewCap instead
-  return { budget: Math.max(4, Math.min(60, o.budget | 0)), mathNew: Math.max(0, Math.min(10, o.mathNew | 0)), socialNew: Math.max(0, Math.min(10, o.socialNew | 0)), hardBias: !!o.hardBias };
-}
+var WHY = { concept: '觀念不會', slip: '粗心或算錯', misread: '看錯題目' };
 var MATH_META = {
   M01:[1,'整數的運算','A'],M02:[2,'分數的運算','A'],M03:[3,'一元一次方程式','B'],M04:[4,'二元一次聯立方程式','A'],
   M05:[5,'二元一次方程式的圖形','B'],M06:[6,'比與比例式','C'],M07:[7,'一元一次不等式','A'],M08:[8,'線對稱與三視圖','C'],
@@ -172,6 +187,11 @@ var MATH_META = {
 };
 var AREAS = ['歷史', '地理', '公民'];
 
+function normalizeSettings(s) {
+  var o = Object.assign({}, DEFAULT_SETTINGS, s || {});
+  if (!(o.budget >= 1)) o.budget = DEFAULT_SETTINGS.budget;   // older saved settings had reviewCap instead
+  return { budget: Math.max(4, Math.min(60, o.budget | 0)), mathNew: Math.max(0, Math.min(10, o.mathNew | 0)), socialNew: Math.max(0, Math.min(10, o.socialNew | 0)), hardBias: !!o.hardBias };
+}
 function pad2(n) { return (n < 10 ? '0' : '') + n; }
 function toDateStr(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
 function parseDate(s) { var p = s.split('-'); return new Date(+p[0], +p[1] - 1, +p[2], 12, 0, 0); }
@@ -180,7 +200,7 @@ function daysBetween(a, b) { return Math.round((parseDate(b) - parseDate(a)) / 8
 function hashStr(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
 function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 
-function newCard() { return { box: 0, due: null, seen: 0, correct: 0, wrong: 0, streak: 0, mastered: false, manual: false, last: null }; }
+function newCard() { return { box: 0, due: null, seen: 0, correct: 0, wrong: 0, streak: 0, mastered: false, manual: false, last: null, why: null }; }
 function cardOf(cards, id) { var c = cards[id]; return c ? Object.assign(newCard(), c) : newCard(); }
 
 function applyAnswer(card, ok, today) {
@@ -196,6 +216,17 @@ function applyAnswer(card, ok, today) {
     c.mastered = false; c.manual = false;
     c.due = addDays(today, 1);
   }
+  return c;
+}
+// "I guessed": a right answer without recall is not a recall. Back to the start, tomorrow again, but not counted as wrong.
+function markGuess(card, today) {
+  var c = Object.assign(newCard(), card);
+  c.box = 0; c.streak = 0; c.mastered = false; c.manual = false; c.due = addDays(today, 1); c.guessed = (c.guessed || 0) + 1;
+  return c;
+}
+function tagWhy(card, why) {
+  var c = Object.assign(newCard(), card);
+  var w = Object.assign({}, c.why || {}); w[why] = (w[why] || 0) + 1; c.why = w;
   return c;
 }
 function setMastered(card, on, today) {
@@ -216,12 +247,13 @@ function nextReviewText(card, today) {
 function unitStats(bank, cards) {
   var st = {};
   bank.forEach(function (q) {
-    var s = st[q.unit] || (st[q.unit] = { unit: q.unit, name: q.unit_name, subject: q.subject, area: q.area || null, tier: q.tier || null, num: q.unit_num || 0, total: 0, seen: 0, mastered: 0, correct: 0, wrong: 0, answered: 0, due: 0 });
+    var s = st[q.unit] || (st[q.unit] = { unit: q.unit, name: q.unit_name, subject: q.subject, area: q.area || null, tier: q.tier || null, num: q.unit_num || 0, total: 0, seen: 0, mastered: 0, correct: 0, wrong: 0, answered: 0, why: { concept: 0, slip: 0, misread: 0 } });
     s.total += 1;
     var c = cards[q.id]; if (!c) return;
     if (c.seen > 0) s.seen += 1;
     if (c.mastered) s.mastered += 1;
     s.correct += c.correct || 0; s.wrong += c.wrong || 0; s.answered = s.correct + s.wrong;
+    if (c.why) Object.keys(c.why).forEach(function (k) { if (s.why[k] != null) s.why[k] += c.why[k]; });
   });
   return st;
 }
@@ -304,6 +336,11 @@ function pickUnit(bank, cards, unit, n, rng) {
   for (var i = unseen.length - 1; i > 0; i--) { var j = Math.floor(rng() * (i + 1)); var t = unseen[i]; unseen[i] = unseen[j]; unseen[j] = t; }
   return unseen.concat(seen).slice(0, n).map(function (q) { return q.id; });
 }
+// The wrong-answer notebook: every question answered wrong at least once and not yet learned, worst first.
+function wrongList(bank, cards) {
+  return bank.filter(function (q) { var c = cards[q.id]; return c && c.wrong > 0 && !c.mastered; })
+    .sort(function (a, b) { var ca = cards[a.id], cb = cards[b.id]; return (cb.wrong - ca.wrong) || ((ca.due || '').localeCompare(cb.due || '')) || a.id.localeCompare(b.id); });
+}
 function computeStreak(days, today) {
   var n = 0, d = today;
   var did = function (x) { var day = days[x]; return !!(day && day.answered && Object.keys(day.answered).length); };
@@ -311,40 +348,48 @@ function computeStreak(days, today) {
   while (did(d)) { n++; d = addDays(d, -1); }
   return n;
 }
+function dayCounts(days, today, n) {
+  var out = [];
+  for (var i = n - 1; i >= 0; i--) { var d = addDays(today, -i), day = days[d]; out.push({ date: d, n: day && day.answered ? Object.keys(day.answered).length : 0 }); }
+  return out;
+}
 function summarize(bank, cards, days, today) {
-  var mastered = 0, dueNow = 0, seen = 0;
-  bank.forEach(function (q) { var c = cards[q.id]; if (!c) return; if (c.mastered) mastered++; if (c.seen > 0) seen++; if (isDue(c, today)) dueNow++; });
+  var mastered = 0, dueNow = 0, seen = 0, wrongOpen = 0;
+  bank.forEach(function (q) { var c = cards[q.id]; if (!c) return; if (c.mastered) mastered++; if (c.seen > 0) seen++; if (isDue(c, today)) dueNow++; if (c.wrong > 0 && !c.mastered) wrongOpen++; });
   var ok = 0, all = 0;
   for (var i = 0; i < 7; i++) {
     var day = days[addDays(today, -i)]; if (!day || !day.answered) continue;
     Object.keys(day.answered).forEach(function (id) { all++; if (day.answered[id].ok) ok++; });
   }
-  return { mastered: mastered, due: dueNow, seen: seen, streak: computeStreak(days, today), acc7: all ? Math.round(ok / all * 100) : null, answered7: all };
+  return { mastered: mastered, due: dueNow, seen: seen, wrongOpen: wrongOpen, streak: computeStreak(days, today), acc7: all ? Math.round(ok / all * 100) : null, answered7: all };
 }
 /*@logic-end*/
 
-// ---------- Storage: db capability (cloud, synced across devices) with a browser-storage fallback ----------
+// ---------- Storage ----------
+// Three homes for the record, picked at boot: the claude.ai artifact db when the page runs inside claude.ai; the
+// sync worker (Cloudflare D1) when it runs on its own site; otherwise this browser's localStorage. The remote
+// store also mirrors into localStorage so a phone without signal still opens with the last known record.
+var API_BASE = 'https://huikao-api.happygoody.net';
+var IN_CLAUDE = !!(window.claude && typeof window.claude.use === 'function');
+var LS_KEY = 'huikao-daily-v1', CODE_KEY = 'huikao-sync-code';
+function lsRead() { try { return JSON.parse(localStorage.getItem(LS_KEY) || '{}'); } catch (e) { return {}; } }
+function lsWrite(o) { try { localStorage.setItem(LS_KEY, JSON.stringify(o)); } catch (e) {} }
 function localStore() {
-  var KEY = 'huikao-daily-v1';
-  function read() { try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) { return {}; } }
-  function write(o) { try { localStorage.setItem(KEY, JSON.stringify(o)); } catch (e) {} }
   return {
     kind: 'local',
-    load: function () { var o = read(); return Promise.resolve({ cards: o.cards || {}, days: o.days || {}, settings: o.settings || null }); },
-    setCard: function (id, c) { var o = read(); (o.cards = o.cards || {})[id] = c; write(o); return Promise.resolve(); },
-    setDay: function (d, v) { var o = read(); (o.days = o.days || {})[d] = v; write(o); return Promise.resolve(); },
-    setSettings: function (s) { var o = read(); o.settings = s; write(o); return Promise.resolve(); },
-    reset: function () { write({}); return Promise.resolve(); }
+    load: function () { var o = lsRead(); return Promise.resolve({ cards: o.cards || {}, days: o.days || {}, settings: o.settings || null }); },
+    setCard: function (id, c) { var o = lsRead(); (o.cards = o.cards || {})[id] = c; lsWrite(o); return Promise.resolve(); },
+    setDay: function (d, v) { var o = lsRead(); (o.days = o.days || {})[d] = v; lsWrite(o); return Promise.resolve(); },
+    setSettings: function (s) { var o = lsRead(); o.settings = s; lsWrite(o); return Promise.resolve(); },
+    reset: function () { lsWrite({}); return Promise.resolve(); }
   };
 }
-function dbStore(db) {
+function chained() {
   var chains = {};
-  function write(path, data) {
-    var prev = chains[path] || Promise.resolve();
-    var p = prev.catch(function () {}).then(function () { return db.doc(path).set(data); });
-    chains[path] = p;
-    return p;
-  }
+  return function (path, fn) { var prev = chains[path] || Promise.resolve(); var p = prev.catch(function () {}).then(fn); chains[path] = p; return p; };
+}
+function dbStore(db) {
+  var write = chained();
   function readAll(col) {
     return db.collection(col).limit(1000).get().then(function (snap) {
       var o = {}; snap.docs.forEach(function (d) { if (d.exists) o[d.id] = d.data(); }); return o;
@@ -357,9 +402,9 @@ function dbStore(db) {
         return { cards: r[0], days: r[1], settings: r[2].exists ? r[2].data() : null };
       });
     },
-    setCard: function (id, c) { return write('cards/' + id, c); },
-    setDay: function (d, v) { return write('days/' + d, v); },
-    setSettings: function (s) { return write('meta/settings', s); },
+    setCard: function (id, c) { return write('cards/' + id, function () { return db.doc('cards/' + id).set(c); }); },
+    setDay: function (d, v) { return write('days/' + d, function () { return db.doc('days/' + d).set(v); }); },
+    setSettings: function (s) { return write('meta/settings', function () { return db.doc('meta/settings').set(s); }); },
     reset: function () {
       return Promise.all([readAll('cards'), readAll('days')]).then(function (r) {
         var paths = Object.keys(r[0]).map(function (id) { return 'cards/' + id; }).concat(Object.keys(r[1]).map(function (d) { return 'days/' + d; }));
@@ -374,9 +419,39 @@ function dbStore(db) {
     }
   };
 }
+function syncCode() {
+  var c = ''; try { c = localStorage.getItem(CODE_KEY) || ''; } catch (e) {}
+  if (!/^[0-9a-f]{32}$/.test(c)) {
+    var b = new Uint8Array(16); (window.crypto || window.msCrypto).getRandomValues(b);
+    c = Array.prototype.map.call(b, function (x) { return (x < 16 ? '0' : '') + x.toString(16); }).join('');
+    try { localStorage.setItem(CODE_KEY, c); } catch (e) {}
+  }
+  return c;
+}
+function remoteStore(api, code) {
+  var write = chained(), local = localStore();
+  function call(body) {
+    return fetch(api + '/', { method: 'POST', headers: { 'content-type': 'text/plain;charset=UTF-8' }, body: JSON.stringify(Object.assign({ code: code }, body)) })
+      .then(function (r) { return r.json().then(function (j) { if (j.status !== 'ok') throw new Error(j.status || ('HTTP ' + r.status)); return j; }); });
+  }
+  return {
+    kind: 'remote', code: code,
+    load: function () {
+      return call({ op: 'load' }).then(function (j) {
+        var st = { cards: j.cards || {}, days: j.days || {}, settings: j.settings || null };
+        lsWrite(st);           // mirror for offline opens
+        return st;
+      });
+    },
+    setCard: function (id, c) { local.setCard(id, c); return write('card/' + id, function () { return call({ op: 'card', key: id, data: c }); }); },
+    setDay: function (d, v) { local.setDay(d, v); return write('day/' + d, function () { return call({ op: 'day', key: d, data: v }); }); },
+    setSettings: function (s) { local.setSettings(s); return write('settings', function () { return call({ op: 'settings', data: s }); }); },
+    reset: function () { local.reset(); return call({ op: 'reset' }); }
+  };
+}
 
 // ---------- App ----------
-var S = { bank: [], byId: {}, cards: {}, days: {}, settings: Object.assign({}, DEFAULT_SETTINGS), today: toDateStr(new Date()), tab: 'today', session: null, store: null, ready: false, error: null, confirmReset: false };
+var S = { bank: [], byId: {}, cards: {}, days: {}, settings: Object.assign({}, DEFAULT_SETTINGS), today: toDateStr(new Date()), tab: 'today', session: null, store: null, ready: false, error: null, confirmReset: false, offline: false, wrongFilter: 'all', qStart: 0, qId: null };
 var $view = document.getElementById('view');
 
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -385,7 +460,8 @@ function toast(msg) {
   var t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t);
   setTimeout(function () { t.remove(); }, 2600);
 }
-function saveErr(e) { toast('儲存失敗，這題的紀錄可能沒存到。'); if (window.console) console.warn(e); }
+function saveErr(e) { if (!S.offline) toast('儲存失敗，這題的紀錄可能沒存到。'); if (window.console) console.warn(e); }   // offline: the notice on the page already says so
+function persistCard(id) { S.store.setCard(id, S.cards[id]).catch(saveErr); }
 
 function todayDoc() { return S.days[S.today]; }
 function ensureDaily() {
@@ -415,27 +491,53 @@ function addMore(n) {
   S.session.idx = S.session.ids.length - extra.length;
   render();
 }
+function startSession(kind, ids, extra) {
+  S.session = Object.assign({ kind: kind, ids: ids, idx: 0, answered: {}, reviews: {} }, extra || {});
+  S.tab = 'today'; render(); window.scrollTo(0, 0);
+}
 function startUnit(unit) {
   var ids = pickUnit(S.bank, S.cards, unit, 5, mulberry32(hashStr(unit + S.today + Object.keys(S.cards).length)));
   if (!ids.length) { toast('這個單元的題目都學會了。'); return; }
-  S.session = { kind: 'unit', unit: unit, ids: ids, idx: 0, answered: {}, reviews: {} };
-  S.tab = 'today'; render(); window.scrollTo(0, 0);
+  startSession('unit', ids, { unit: unit });
+}
+function startWrong(ids) {
+  if (!ids.length) { toast('錯題本是空的。'); return; }
+  startSession('wrong', ids.slice(0, 10));
 }
 function answer(pick) {
   var ses = S.session, id = ses.ids[ses.idx], q = S.byId[id];
   if (!q || ses.answered[id]) return;
   var ok = pick === q.answer;
-  ses.answered[id] = { ok: ok, pick: pick, at: new Date().toISOString() };
+  var sec = S.qId === id && S.qStart ? Math.min(900, Math.round((Date.now() - S.qStart) / 1000)) : null;
+  ses.answered[id] = { ok: ok, pick: pick, at: new Date().toISOString(), sec: sec };
   S.cards[id] = applyAnswer(cardOf(S.cards, id), ok, S.today);
-  S.store.setCard(id, S.cards[id]).catch(saveErr);
+  persistCard(id);
   if (ses.kind === 'daily') { var day = todayDoc(); day.answered = ses.answered; S.store.setDay(S.today, day).catch(saveErr); }
   render();
 }
 function toggleMastered(id) {
   var c = cardOf(S.cards, id);
   S.cards[id] = setMastered(c, !c.mastered, S.today);
-  S.store.setCard(id, S.cards[id]).catch(saveErr);
+  persistCard(id);
   toast(S.cards[id].mastered ? '已打勾，這題不會再出。' : '取消打勾，明天會再出一次。');
+  render();
+}
+function guessed(id) {
+  var ses = S.session, a = ses.answered[id]; if (!a || !a.ok || a.guess) return;
+  a.guess = true;
+  S.cards[id] = markGuess(cardOf(S.cards, id), S.today);
+  persistCard(id);
+  if (ses.kind === 'daily') { var day = todayDoc(); day.answered = ses.answered; S.store.setDay(S.today, day).catch(saveErr); }
+  toast('好，誠實很重要。這題明天再出一次。');
+  render();
+}
+function setWhy(id, why) {
+  var ses = S.session, a = ses.answered[id]; if (!a || a.ok || !WHY[why]) return;
+  if (a.why === why) return;
+  a.why = why;
+  S.cards[id] = tagWhy(cardOf(S.cards, id), why);
+  persistCard(id);
+  if (ses.kind === 'daily') { var day = todayDoc(); day.answered = ses.answered; S.store.setDay(S.today, day).catch(saveErr); }
   render();
 }
 
@@ -445,35 +547,40 @@ function renderCountdown() {
 }
 function renderTabs() {
   document.querySelectorAll('.tab').forEach(function (b) { if (b.dataset.tab === S.tab) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+  var n = S.ready ? wrongList(S.bank, S.cards).length : 0, tab = document.getElementById('tab-wrong'), badge = tab.querySelector('.badge');
+  if (n && !badge) { badge = document.createElement('span'); badge.className = 'badge'; tab.appendChild(badge); }
+  if (badge) { if (n) badge.textContent = n > 99 ? '99+' : n; else badge.remove(); }
 }
 function render() {
   renderTabs(); renderCountdown();
   if (S.error) { $view.innerHTML = '<section class="card empty"><b>題庫載入失敗</b><span>' + esc(S.error) + '</span><div><button class="btn primary" data-act="reload">重新載入</button></div></section>'; return; }
   if (!S.ready) return;
   if (S.tab === 'today') renderToday();
+  else if (S.tab === 'wrong') renderWrong();
   else if (S.tab === 'progress') renderProgress();
   else renderSettings();
 }
 function subjectChip(q) { return '<span class="chip ' + q.subject + '">' + (q.subject === 'math' ? '數學' : esc(q.area || '社會')) + '</span>'; }
+function unitLabel(unit) { var m = MATH_META[unit]; if (m) return m[0] + '. ' + m[1]; var q = S.bank.filter(function (x) { return x.unit === unit; })[0]; return q ? q.unit_name : unit; }
+function offlineNote() { return S.offline ? '<div class="notice">現在連不上雲端，先用這台裝置上次同步的紀錄。這段時間的作答只會存在這台裝置。</div>' : ''; }
 function renderToday() {
   var ses = S.session; if (!ses) ensureDaily(), ses = S.session;
   var total = ses.ids.length, done = ses.ids.filter(function (id) { return ses.answered[id]; }).length;
-  var head = '';
-  if (ses.kind === 'unit') {
-    var meta = MATH_META[ses.unit]; var nm = meta ? meta[1] : (S.bank.filter(function (q) { return q.unit === ses.unit; })[0] || {}).unit_name;
-    head = '<div class="row between"><span class="chip">加練：' + esc(nm || ses.unit) + '</span><button class="btn mini" data-act="back-daily">回到今天的題目</button></div>';
-  }
+  var head = offlineNote();
+  if (ses.kind === 'unit') head += '<div class="row between"><span class="chip">加練：' + esc(unitLabel(ses.unit)) + '</span><button class="btn mini" data-act="back-daily">回到今天的題目</button></div>';
+  if (ses.kind === 'wrong') head += '<div class="row between"><span class="chip">重做錯題</span><button class="btn mini" data-act="back-daily">回到今天的題目</button></div>';
   if (!total) {
     $view.innerHTML = head + '<section class="card empty"><b>今天沒有題目</b><span>題庫裡還沒做過的題目都做完了，或是設定的每日題數是 0。</span><div><button class="btn primary" data-act="tab" data-tab="settings">調整設定</button></div></section>';
     return;
   }
   if (ses.idx >= total) { renderSummary(head, ses, total, done); return; }
   var id = ses.ids[ses.idx], q = S.byId[id], a = ses.answered[id], card = cardOf(S.cards, id);
+  if (!a && S.qId !== id) { S.qId = id; S.qStart = Date.now(); }
   var isReview = !!ses.reviews[id];
   var nRev = ses.ids.filter(function (x) { return ses.reviews[x]; }).length;
   var html = head + '<div class="prog num"><span>第 ' + (ses.idx + 1) + ' / ' + total + ' 題</span><div class="bar"><i style="width:' + Math.round(done / total * 100) + '%"></i></div><span>' + (ses.kind === 'daily' ? '複習 ' + nRev + ' · 新題 ' + (total - nRev) : done + ' 完成') + '</span></div>';
   html += '<section class="card sheet">';
-  html += '<div class="row">' + subjectChip(q) + '<span class="chip">' + esc(q.unit_name) + '</span>' + (q.difficulty === '難' ? '<span class="chip hard">難</span>' : '<span class="chip">中等</span>') + (isReview ? '<span class="chip review">複習</span>' : '') + '</div>';
+  html += '<div class="row">' + subjectChip(q) + '<span class="chip">' + esc(q.unit_name) + '</span>' + (q.difficulty === '難' ? '<span class="chip hard">難</span>' : '<span class="chip">中等</span>') + (isReview ? '<span class="chip review">複習</span>' : '') + (card.wrong > 0 && !a ? '<span class="chip">之前錯過 ' + card.wrong + ' 次</span>' : '') + '</div>';
   html += '<div class="stem">' + esc(q.stem) + '</div>';
   var svg = safeSvg(q.figure_svg); if (svg) html += '<div class="fig">' + svg + '</div>';
   html += '<div class="opts">';
@@ -483,11 +590,16 @@ function renderToday() {
   });
   html += '</div>';
   if (a) {
-    html += '<div class="verdict ' + (a.ok ? 'ok' : 'bad') + '"><b>' + (a.ok ? '答對了' : '答錯了，正確答案是 (' + 'ABCD'[q.answer] + ')') + '</b><span>' + esc(nextReviewText(card, S.today)) + '</span></div>';
+    var verdictTitle = a.ok ? (a.guess ? '答對，但你說是猜的' : '答對了') : '答錯了，正確答案是 (' + 'ABCD'[q.answer] + ')';
+    html += '<div class="verdict ' + (a.ok ? 'ok' : 'bad') + '"><b>' + verdictTitle + '</b><span>' + esc(nextReviewText(card, S.today)) + (a.sec != null ? ' 用了 ' + a.sec + ' 秒。' : '') + '</span></div>';
+    if (!a.ok) {
+      html += '<div class="why"><div class="lbl">這題錯在哪？點一下，進度頁會幫你統計。</div><div class="row">' + Object.keys(WHY).map(function (k) { return '<button class="chip' + (a.why === k ? ' on' : '') + '" data-act="why" data-why="' + k + '" data-id="' + esc(id) + '">' + WHY[k] + '</button>'; }).join('') + '</div></div>';
+    }
     html += '<div class="expl"><div class="lbl">詳解</div><p>' + esc(q.explanation) + '</p></div>';
     html += '<div class="actions">';
-    if (a.ok || card.seen > 1) html += '<button class="btn ok' + (card.mastered ? ' on' : '') + '" data-act="master" data-id="' + esc(id) + '">' + (card.mastered ? '✓ 已學會（取消）' : '✓ 我確定會了') + '</button>';
-    html += '<button class="btn primary grow" data-act="next">' + (ses.idx + 1 >= total ? '看今天的結果' : '下一題') + '</button></div>';
+    if (a.ok && !a.guess) html += '<button class="btn quiet" data-act="guess" data-id="' + esc(id) + '">其實是猜的</button>';
+    if ((a.ok && !a.guess) || card.seen > 1) html += '<button class="btn ok' + (card.mastered ? ' on' : '') + '" data-act="master" data-id="' + esc(id) + '">' + (card.mastered ? '✓ 已學會（取消）' : '✓ 我確定會了') + '</button>';
+    html += '<button class="btn primary grow" data-act="next">' + (ses.idx + 1 >= total ? '看結果' : '下一題') + '</button></div>';
   } else {
     html += '<p class="small muted" style="margin:14px 0 0">按鍵盤 <kbd>1</kbd>～<kbd>4</kbd> 也可以作答。</p>';
   }
@@ -495,35 +607,63 @@ function renderToday() {
   $view.innerHTML = html;
 }
 function renderSummary(head, ses, total, done) {
-  var ok = ses.ids.filter(function (id) { return ses.answered[id] && ses.answered[id].ok; }).length;
-  var wrong = ses.ids.filter(function (id) { return ses.answered[id] && !ses.answered[id].ok; });
+  var ok = ses.ids.filter(function (id) { return ses.answered[id] && ses.answered[id].ok && !ses.answered[id].guess; }).length;
+  var wrong = ses.ids.filter(function (id) { return ses.answered[id] && (!ses.answered[id].ok || ses.answered[id].guess); });
+  var secs = ses.ids.map(function (id) { return ses.answered[id] && ses.answered[id].sec; }).filter(function (s) { return s != null; });
+  var avgSec = secs.length ? Math.round(secs.reduce(function (x, y) { return x + y; }, 0) / secs.length) : null;
   var html = head + '<section class="card"><h2>' + (ses.kind === 'daily' ? '今天的題目做完了' : '這一輪做完了') + '</h2>';
   html += '<div class="tiles" style="margin-top:12px"><div class="tile"><b>' + ok + '/' + done + '</b><span>答對</span></div><div class="tile"><b>' + (done ? Math.round(ok / done * 100) : 0) + '%</b><span>正確率</span></div>';
   var sum = summarize(S.bank, S.cards, S.days, S.today);
   html += '<div class="tile"><b>' + sum.streak + '</b><span>連續天數</span></div><div class="tile"><b>' + sum.mastered + '</b><span>已學會</span></div></div>';
+  if (avgSec != null) html += '<p class="small muted" style="margin:10px 0 0">平均每題 ' + avgSec + ' 秒。會考 80 分鐘 27 題，平均一題不到 3 分鐘，選擇題要抓 2 分鐘以內。</p>';
   if (wrong.length) {
-    html += '<h3 style="margin-top:14px">答錯的題目明天會再出</h3><div class="wronglist">' + wrong.map(function (id) { var q = S.byId[id]; return '<div>' + esc(q.unit_name) + ' <small>' + esc(q.topic || '') + '</small></div>'; }).join('') + '</div>';
+    html += '<h3 style="margin-top:14px">這些明天會再出</h3><div class="wronglist">' + wrong.map(function (id) { var q = S.byId[id], a = ses.answered[id]; return '<div>' + esc(q.unit_name) + ' <small>' + esc(q.topic || '') + (a.why ? ' · ' + WHY[a.why] : a.guess ? ' · 猜的' : '') + '</small></div>'; }).join('') + '</div>';
   } else if (done) {
     html += '<p class="muted small" style="margin:12px 0 0">全對。答對的題目會在 1、3、7、14、30 天後再各出一次，五次都對就算學會。</p>';
   }
   html += '<div class="actions">';
   if (ses.kind === 'daily') html += '<button class="btn primary" data-act="more" data-n="6">再加練 6 題</button><button class="btn" data-act="tab" data-tab="progress">看進度</button>';
-  else html += '<button class="btn primary" data-act="back-daily">回到今天的題目</button><button class="btn" data-act="unit" data-unit="' + esc(ses.unit) + '">這個單元再 5 題</button>';
+  else if (ses.kind === 'unit') html += '<button class="btn primary" data-act="back-daily">回到今天的題目</button><button class="btn" data-act="unit" data-unit="' + esc(ses.unit) + '">這個單元再 5 題</button>';
+  else html += '<button class="btn primary" data-act="back-daily">回到今天的題目</button><button class="btn" data-act="tab" data-tab="wrong">看錯題本</button>';
   html += '</div></section>';
+  $view.innerHTML = html;
+}
+function renderWrong() {
+  var list = wrongList(S.bank, S.cards);
+  var f = S.wrongFilter;
+  var shown = list.filter(function (q) { return f === 'all' || q.subject === f; });
+  var html = '<div class="row between"><div class="row">' + [['all', '全部'], ['math', '數學'], ['social', '社會']].map(function (p) { return '<button class="chip' + (f === p[0] ? ' on' : '') + '" data-act="wrong-filter" data-f="' + p[0] + '">' + p[1] + '</button>'; }).join('') + '</div>';
+  html += '<button class="btn mini primary" data-act="redo-wrong"' + (shown.length ? '' : ' disabled') + '>重做 ' + Math.min(10, shown.length) + ' 題</button></div>';
+  if (!list.length) {
+    html += '<section class="card empty"><b>錯題本是空的</b><span>答錯的題目會自動收進來，一直到你把它學會。</span></section>';
+  } else {
+    html += '<p class="small muted" style="margin:0">共 ' + list.length + ' 題還沒學會。錯最多次的排最前面，學會了就會自動離開這裡。</p><div class="wrongs">';
+    shown.forEach(function (q) {
+      var c = cardOf(S.cards, q.id);
+      var why = c.why ? Object.keys(c.why).filter(function (k) { return c.why[k] > 0 && WHY[k]; }).map(function (k) { return WHY[k] + ' ' + c.why[k]; }).join('、') : '';
+      html += '<div class="wrong"><div class="row">' + subjectChip(q) + '<span class="chip">' + esc(q.unit_name) + '</span>' + (q.difficulty === '難' ? '<span class="chip hard">難</span>' : '') + '</div>';
+      html += '<div class="stem-s">' + esc(q.stem) + '</div>';
+      html += '<div class="row between"><span class="meta">錯 ' + c.wrong + ' 次 · 對 ' + c.correct + ' 次' + (why ? ' · ' + esc(why) : '') + (c.due ? ' · 下次 ' + c.due.slice(5).replace('-', '/') : '') + '</span><button class="btn mini" data-act="redo-one" data-id="' + esc(q.id) + '">重做</button></div></div>';
+    });
+    html += '</div>';
+  }
   $view.innerHTML = html;
 }
 function renderProgress() {
   var sum = summarize(S.bank, S.cards, S.days, S.today);
   var stats = unitStats(S.bank, S.cards);
-  var html = '<div class="tiles"><div class="tile"><b>' + sum.mastered + '</b><span>已學會</span></div><div class="tile"><b>' + sum.due + '</b><span>今天該複習</span></div><div class="tile"><b>' + sum.streak + '</b><span>連續天數</span></div><div class="tile"><b>' + (sum.acc7 == null ? '–' : sum.acc7 + '%') + '</b><span>近 7 天正確率</span></div></div>';
+  var html = offlineNote() + '<div class="tiles"><div class="tile"><b>' + sum.mastered + '</b><span>已學會</span></div><div class="tile"><b>' + sum.due + '</b><span>今天該複習</span></div><div class="tile"><b>' + sum.streak + '</b><span>連續天數</span></div><div class="tile"><b>' + (sum.acc7 == null ? '–' : sum.acc7 + '%') + '</b><span>近 7 天正確率</span></div></div>';
+  var strip = dayCounts(S.days, S.today, 14);
+  html += '<section class="card" style="padding:12px 16px"><div class="row between"><h3 style="margin:0">最近 14 天</h3><span class="small muted num">' + strip.filter(function (d) { return d.n > 0; }).length + ' 天有做</span></div><div class="strip">' + strip.map(function (d) { return '<i class="' + (d.n >= 15 ? 'l3' : d.n >= 8 ? 'l2' : d.n > 0 ? 'l1' : '') + (d.date === S.today ? ' today' : '') + '" title="' + d.date + '：' + d.n + ' 題"></i>'; }).join('') + '</div></section>';
   html += '<div class="legend"><span><i class="dot red"></i>紅：正確率低於 6 成</span><span><i class="dot yellow"></i>黃：還不穩</span><span><i class="dot green"></i>綠：穩了</span><span><i class="dot"></i>灰：還沒做過</span></div>';
   function unitRow(s, label) {
     var acc = s.answered ? Math.round(s.correct / s.answered * 100) + '%' : '–';
-    return '<div class="unit"><i class="dot ' + light(s) + '"></i><div class="nm">' + esc(label) + '<small>會 ' + s.mastered + ' / 做過 ' + s.seen + ' / 共 ' + s.total + ' 題 · 正確率 ' + acc + '</small></div><button class="btn mini" data-act="unit" data-unit="' + esc(s.unit) + '">練 5 題</button></div>';
+    var why = s.why ? Object.keys(WHY).filter(function (k) { return s.why[k] > 0; }).map(function (k) { return WHY[k] + ' ' + s.why[k]; }).join('、') : '';
+    return '<div class="unit"><i class="dot ' + light(s) + '"></i><div class="nm">' + esc(label) + '<small>會 ' + s.mastered + ' / 做過 ' + s.seen + ' / 共 ' + s.total + ' 題 · 正確率 ' + acc + (why ? '<br>' + esc(why) : '') + '</small></div><button class="btn mini" data-act="unit" data-unit="' + esc(s.unit) + '">練 5 題</button></div>';
   }
   html += '<h2>數學</h2><div class="units">';
   Object.keys(MATH_META).forEach(function (u) {
-    var m = MATH_META[u], s = stats[u] || { unit: u, total: 0, seen: 0, mastered: 0, correct: 0, wrong: 0, answered: 0 };
+    var m = MATH_META[u], s = stats[u] || { unit: u, total: 0, seen: 0, mastered: 0, correct: 0, wrong: 0, answered: 0, why: null };
     html += unitRow(s, m[0] + '. ' + m[1] + (m[2] === 'A' ? '（必熟）' : ''));
   });
   html += '</div>';
@@ -543,31 +683,62 @@ function renderSettings() {
   html += '<div class="field"><label for="socialNew">社會新題上限</label><input type="number" id="socialNew" min="0" max="10" value="' + st.socialNew + '"></div>';
   html += '<label class="check"><input type="checkbox" id="hardBias"' + (st.hardBias ? ' checked' : '') + '>多出「難」的題目</label>';
   html += '<div class="actions"><button class="btn primary" data-act="save-settings">儲存設定</button></div><p class="small muted" style="margin:10px 0 0">改了之後，明天的題組會照新設定出；今天已經排好的不變。</p></section>';
-  html += '<section class="card"><h2>怎麼算「學會」</h2><p class="small" style="margin:8px 0 0">答對後這題會在 1、3、7、14、30 天後各再出一次，間隔越拉越長，剛好在快忘記的時候出現。五次都答對就自動打勾。答錯就回到起點，明天再出。你也可以在答對後自己按「我確定會了」直接打勾。</p>';
-  html += '<p class="small muted" style="margin:8px 0 0">題庫：數學 ' + counts.math + ' 題、社會 ' + counts.social + ' 題，只有中等與難題。紀錄' + (S.store.kind === 'cloud' ? '存在雲端，換裝置也會同步。' : '只存在這個瀏覽器裡。') + '</p></section>';
-  html += '<section class="card"><h2>清除紀錄</h2><p class="small muted" style="margin:8px 0 0">會刪掉所有作答與學會的紀錄，題庫不受影響。</p><div class="actions">';
-  if (S.confirmReset) html += '<button class="btn danger" data-act="reset-yes">確定清除</button><button class="btn" data-act="reset-no">取消</button>';
+  html += '<section class="card"><h2>怎麼算「學會」</h2><p class="small" style="margin:8px 0 0">答對後這題會在 1、3、7、14、30 天後各再出一次，間隔越拉越長，剛好在快忘記的時候出現。五次都答對就自動打勾。答錯就回到起點，明天再出。答對後按「其實是猜的」也會回到起點。你也可以在答對後自己按「我確定會了」直接打勾。</p>';
+  html += '<p class="small muted" style="margin:8px 0 0">題庫：數學 ' + counts.math + ' 題、社會 ' + counts.social + ' 題，只有中等與難題。</p></section>';
+  if (S.store.kind === 'remote' || (S.store.kind === 'local' && !IN_CLAUDE && S.syncCode)) {
+    html += '<section class="card"><h2>換裝置也能繼續</h2><p class="small" style="margin:8px 0 0">你的紀錄用這組同步碼存在雲端。在另一台手機或電腦打開同一個網址，把同步碼貼進去，就會看到同一份進度。不要把它給別人，拿到的人就能看到並改你的紀錄。</p>';
+    html += '<div class="code" id="synccode" style="margin-top:10px">' + esc(S.syncCode) + '</div><div class="actions"><button class="btn mini" data-act="copy-code">複製同步碼</button></div>';
+    html += '<div class="field"><label for="othercode">用另一台裝置的同步碼</label><input id="othercode" inputmode="text" autocomplete="off" spellcheck="false" placeholder="貼上 32 個字的同步碼" style="width:100%"><span class="hint">切換後這台裝置會改看那組紀錄；原本這台的紀錄還在雲端，用原本的同步碼可以切回來。</span></div>';
+    html += '<div class="actions"><button class="btn" data-act="use-code">切換到這組</button></div>';
+    html += '<p class="small muted" style="margin:10px 0 0">狀態：' + (S.store.kind === 'remote' ? (S.offline ? '離線，使用上次同步的紀錄' : '已連上雲端') : '只存在這台裝置') + '</p></section>';
+  } else {
+    html += '<section class="card"><h2>紀錄存在哪裡</h2><p class="small muted" style="margin:8px 0 0">' + (S.store.kind === 'cloud' ? '存在雲端，用同一個 claude.ai 帳號在任何裝置打開都會同步。' : '只存在這個瀏覽器裡。清掉瀏覽器資料就會不見。') + '</p></section>';
+  }
+  html += '<section class="card"><h2>備份與清除</h2><div class="actions">';
+  if (!IN_CLAUDE) html += '<button class="btn" data-act="export">下載紀錄備份（JSON）</button>';
+  if (S.confirmReset) html += '<button class="btn danger" data-act="reset-yes">確定清除所有紀錄</button><button class="btn" data-act="reset-no">取消</button>';
   else html += '<button class="btn danger" data-act="reset">清除所有紀錄</button>';
-  html += '</div></section>';
+  html += '</div><p class="small muted" style="margin:8px 0 0">清除會刪掉所有作答與學會的紀錄，題庫不受影響。</p></section>';
   $view.innerHTML = html;
 }
 
 document.addEventListener('click', function (e) {
-  var b = e.target.closest('[data-act],[data-tab]'); if (!b) return;
+  var b = e.target.closest('[data-act],[data-tab]'); if (!b || b.disabled) return;
   var act = b.dataset.act;
   if (!act && b.dataset.tab) { S.tab = b.dataset.tab; S.confirmReset = false; render(); window.scrollTo(0, 0); return; }
   if (act === 'tab') { S.tab = b.dataset.tab; render(); window.scrollTo(0, 0); }
   else if (act === 'answer') answer(+b.dataset.i);
   else if (act === 'next') { S.session.idx++; render(); window.scrollTo(0, 0); }
   else if (act === 'master') toggleMastered(b.dataset.id);
+  else if (act === 'guess') guessed(b.dataset.id);
+  else if (act === 'why') setWhy(b.dataset.id, b.dataset.why);
   else if (act === 'more') addMore(+b.dataset.n);
   else if (act === 'unit') startUnit(b.dataset.unit);
+  else if (act === 'wrong-filter') { S.wrongFilter = b.dataset.f; render(); }
+  else if (act === 'redo-wrong') startWrong(wrongList(S.bank, S.cards).filter(function (q) { return S.wrongFilter === 'all' || q.subject === S.wrongFilter; }).map(function (q) { return q.id; }));
+  else if (act === 'redo-one') startWrong([b.dataset.id]);
   else if (act === 'back-daily') { ensureDaily(); render(); window.scrollTo(0, 0); }
   else if (act === 'reload') location.reload();
   else if (act === 'save-settings') {
     var v = function (id, lo, hi) { var n = parseInt(document.getElementById(id).value, 10); return isNaN(n) ? lo : Math.max(lo, Math.min(hi, n)); };
     S.settings = normalizeSettings({ budget: v('budget', 4, 60), mathNew: v('mathNew', 0, 10), socialNew: v('socialNew', 0, 10), hardBias: document.getElementById('hardBias').checked });
     S.store.setSettings(S.settings).then(function () { toast('設定已儲存。'); }).catch(saveErr);
+  }
+  else if (act === 'copy-code') {
+    var code = S.syncCode || '';
+    var fallback = function () { var el = document.getElementById('synccode'); if (el) { var r = document.createRange(); r.selectNodeContents(el); var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r); } toast('已選取，長按複製。'); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(function () { toast('同步碼已複製。'); }, fallback); else fallback();
+  }
+  else if (act === 'use-code') {
+    var input = (document.getElementById('othercode').value || '').trim().toLowerCase();
+    if (!/^[0-9a-f]{32}$/.test(input)) { toast('同步碼要是 32 個字的英數字。'); return; }
+    try { localStorage.setItem(CODE_KEY, input); localStorage.removeItem(LS_KEY); } catch (err) {}
+    location.reload();
+  }
+  else if (act === 'export') {
+    var blob = new Blob([JSON.stringify({ exported: new Date().toISOString(), cards: S.cards, days: S.days, settings: S.settings }, null, 1)], { type: 'application/json' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'huikao-daily-' + S.today + '.json'; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
   }
   else if (act === 'reset') { S.confirmReset = true; render(); }
   else if (act === 'reset-no') { S.confirmReset = false; render(); }
@@ -591,17 +762,28 @@ document.addEventListener('visibilitychange', function () {
   if (now !== S.today) { S.today = now; S.session = null; ensureDaily(); render(); }
 });
 
+function pickStore() {
+  if (IN_CLAUDE) {
+    return Promise.resolve().then(function () { return window.claude.use('db'); }).catch(function () { return null; })
+      .then(function (db) { return db ? dbStore(db) : localStore(); });
+  }
+  var selfHosted = location.protocol === 'https:' && !/^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+  if (selfHosted || /[?&]sync=1/.test(location.search)) { S.syncCode = syncCode(); return Promise.resolve(remoteStore(API_BASE, S.syncCode)); }
+  return Promise.resolve(localStore());
+}
 function boot(hot) {
-  S.tab = (hot && hot.tab) || (location.hash === '#progress' ? 'progress' : location.hash === '#settings' ? 'settings' : 'today');
+  S.tab = (hot && hot.tab) || ({ '#wrong': 'wrong', '#progress': 'progress', '#settings': 'settings' }[location.hash] || 'today');
   renderCountdown(); renderTabs();
   var bankP = fetch('questions.json', { cache: 'no-cache' }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
-  var storeP = Promise.resolve().then(function () { return window.claude && window.claude.use ? window.claude.use('db') : null; })
-    .catch(function () { return null; }).then(function (db) { return db ? dbStore(db) : localStore(); });
-  Promise.all([bankP, storeP]).then(function (r) {
+  Promise.all([bankP, pickStore()]).then(function (r) {
     var data = r[0]; S.bank = Array.isArray(data) ? data : (data.questions || []);
     S.byId = {}; S.bank.forEach(function (q) { S.byId[q.id] = q; });
     S.store = r[1];
-    return S.store.load().catch(function (e) { if (window.console) console.warn(e); return { cards: {}, days: {}, settings: null }; });
+    return S.store.load().catch(function (e) {
+      if (window.console) console.warn(e);
+      if (S.store.kind === 'remote') { S.offline = true; return localStore().load(); }   // last mirrored record
+      return { cards: {}, days: {}, settings: null };
+    });
   }).then(function (st) {
     S.cards = st.cards || {}; S.days = st.days || {};
     S.settings = normalizeSettings(st.settings);
@@ -609,6 +791,13 @@ function boot(hot) {
     if (hot && hot.idx != null && S.session && hot.idx <= S.session.ids.length) S.session.idx = hot.idx;
     render();
   }).catch(function (e) { S.error = e && e.message ? e.message : String(e); render(); });
+}
+if (!IN_CLAUDE) {
+  try {
+    var mf = document.createElement('link'); mf.rel = 'manifest'; mf.href = 'manifest.webmanifest'; document.head.appendChild(mf);
+    var tc = document.createElement('meta'); tc.name = 'theme-color'; tc.content = '#2C58B4'; document.head.appendChild(tc);
+    if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(function () {});
+  } catch (e) {}
 }
 if (window.claude && window.claude.hot && window.claude.hot.snapshot) window.claude.hot.snapshot(function () { return { tab: S.tab, idx: S.session ? S.session.idx : null }; });
 if (window.claude && window.claude.hot && window.claude.hot.ready) window.claude.hot.ready(boot); else boot((window.claude && window.claude.hot && window.claude.hot.data) || {});

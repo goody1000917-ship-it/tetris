@@ -78,3 +78,20 @@ assert.equal(sum.seen, 10); assert.equal(sum.acc7, 67); assert.equal(sum.answere
 assert.equal(L.light({answered:0}), 'none'); assert.equal(L.light({answered:3, correct:1}), 'red'); assert.equal(L.light({answered:4, correct:4}), 'green'); assert.equal(L.light({answered:2, correct:1}), 'yellow');
 const ns = L.normalizeSettings({mathNew:5, socialNew:5, reviewCap:12}); assert.equal(ns.budget, 20, 'old settings get a budget'); assert.equal(L.normalizeSettings(null).mathNew, 4);
 console.log('all logic tests passed; weak unit example:', weakUnit, JSON.stringify(areaCount));
+// ---- new in v3: guess, why tags, wrong list, day strip ----
+{
+  let g = L.applyAnswer(L.newCard(), true, '2026-10-02'); g = L.applyAnswer(g, true, '2026-10-03');
+  assert.equal(g.box, 2);
+  g = L.markGuess(g, '2026-10-03'); assert.equal(g.box, 0); assert.equal(g.due, '2026-10-04'); assert.equal(g.correct, 2, 'guess does not undo the correct count'); assert.equal(g.wrong, 0); assert.equal(g.guessed, 1);
+  let w = L.tagWhy(L.applyAnswer(L.newCard(), false, '2026-10-02'), 'concept'); w = L.tagWhy(w, 'concept'); w = L.tagWhy(w, 'slip');
+  assert.deepEqual(w.why, { concept: 2, slip: 1 });
+  const cards2 = { 'M01-01': L.applyAnswer(L.newCard(), false, '2026-10-02'), 'M01-02': L.applyAnswer(L.applyAnswer(L.newCard(), false, '2026-10-01'), false, '2026-10-02'), 'H01-01': L.setMastered(L.applyAnswer(L.newCard(), false, '2026-10-01'), true, '2026-10-02'), 'G01-01': L.applyAnswer(L.newCard(), true, '2026-10-02') };
+  const wl = L.wrongList(bank, cards2).map(q => q.id);
+  assert.deepEqual(wl, ['M01-02', 'M01-01'], 'wrong list: worst first, mastered and never-wrong excluded: ' + wl);
+  const st2 = L.unitStats(bank, { 'M01-01': w });
+  assert.equal(st2.M01.why.concept, 2); assert.equal(st2.M01.why.slip, 1);
+  const strip = L.dayCounts({ '2026-10-02': { answered: { a: {}, b: {} } }, '2026-09-25': { answered: { c: {} } } }, '2026-10-02', 14);
+  assert.equal(strip.length, 14); assert.equal(strip[13].date, '2026-10-02'); assert.equal(strip[13].n, 2); assert.equal(strip[6].n, 1); assert.equal(strip[0].date, '2026-09-19');
+  const sum2 = L.summarize(bank, cards2, {}, '2026-10-02'); assert.equal(sum2.wrongOpen, 2);
+  console.log('v3 logic tests passed');
+}
