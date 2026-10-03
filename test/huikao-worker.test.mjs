@@ -19,7 +19,7 @@ const mig = fs.readFileSync(here('../huikao-worker/migrations/0001_init.sql'), '
 for (const s of mig) await db.prepare(s).run();
 for (const s of mig) await db.prepare(s).run();                 // re-runnable
 
-const API = 'https://huikao-api.happygoody.net';
+const API = 'https://huikao.happygoody.net';
 const post = async (body, headers = {}) => {
   const r = await mf.dispatchFetch(API + '/', { method: 'POST', headers: { 'content-type': 'text/plain;charset=UTF-8', ...headers }, body: typeof body === 'string' ? body : JSON.stringify(body) });
   return { http: r.status, ...(await r.json().catch(() => ({}))) };
@@ -32,6 +32,8 @@ let r = await mf.dispatchFetch(API + '/health');
 ok(r.status === 200 && (await r.json()).ok === true && r.headers.get('access-control-allow-origin') === '*', 'GET /health');
 ok((await mf.dispatchFetch(API + '/', { method: 'OPTIONS' })).status === 204, 'OPTIONS 204');
 ok((await mf.dispatchFetch(API + '/nope')).status === 404, 'unknown GET 404');
+ok((await mf.dispatchFetch(API + '/api/health')).status === 200, 'GET /api/health');
+{ const r = await mf.dispatchFetch(API + '/api/', { method: 'POST', headers: { 'content-type': 'text/plain;charset=UTF-8' }, body: JSON.stringify({ op: 'load', code: 'a'.repeat(32) }) }); ok(r.status === 200 && (await r.json()).status === 'ok', 'POST /api/ works like POST /'); }
 ok((await post('not json')).status === 'bad_request', 'bad JSON');
 ok((await post('[1]')).status === 'bad_request', 'array body');
 ok((await post({ op: 'load', code: 'short' })).status === 'bad_code', 'bad code');

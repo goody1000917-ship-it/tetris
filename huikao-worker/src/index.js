@@ -1,11 +1,13 @@
-// 會考每日練 sync API — Cloudflare Worker + D1. Keeps one student's practice record (per-question spaced-repetition
-// state, each day's question set, settings) so the page at goody1000917-ship-it.github.io/tetris/huikao-daily/ shows
-// the same progress on every device. Same shape as leaderboard-worker (text/plain JSON POST, no preflight).
+// 會考每日練 — Cloudflare Worker + D1. Serves the page itself (Workers Static Assets from ../huikao-daily, see
+// wrangler.jsonc) and keeps one student's practice record (per-question spaced-repetition state, each day's question
+// set, settings) so the page shows the same progress on every device. Same shape as leaderboard-worker
+// (text/plain JSON POST, no preflight). Static files are answered before this code runs; only API calls reach it.
 //
-//   POST /   body: { code, op: 'load' }                        -> { status:'ok', cards:{id:doc}, days:{date:doc}, settings:doc|null }
-//   POST /   body: { code, op: 'card'|'day'|'settings', key, data } -> { status:'ok' }
-//   POST /   body: { code, op: 'reset' }                       -> { status:'ok' }
-//   GET  /health                                               -> { ok:true }
+//   POST /api   body: { code, op: 'load' }                        -> { status:'ok', cards:{id:doc}, days:{date:doc}, settings:doc|null }
+//   POST /api   body: { code, op: 'card'|'day'|'settings', key, data } -> { status:'ok' }
+//   POST /api   body: { code, op: 'reset' }                       -> { status:'ok' }
+//   GET  /api/health                                              -> { ok:true }
+//   (POST / and GET /health work too, for a copy of the page hosted elsewhere pointing at this worker.)
 //   status on failure: 'bad_request' | 'bad_code' | 'bad_key' | 'bad_data' | 'bad_origin' | 'rate_limited' | 'full'
 //
 // `code` is the sync code the page generates on first use (32 hex characters). Only its sha-256 is stored; whoever
@@ -99,11 +101,12 @@ export default {
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
     const ip = rlKey(req.headers.get('cf-connecting-ip') || 'local');
     try {
+      const apiPath = pathname === '/' || pathname === '/api' || pathname === '/api/';
       if (req.method === 'GET') {
-        if (pathname === '/' || pathname === '/health') return json({ ok: true });
+        if (apiPath || pathname === '/health' || pathname === '/api/health') return json({ ok: true });
         return json({ error: 'not_found' }, 404);
       }
-      if (req.method !== 'POST' || pathname !== '/') return json({ error: 'not_found' }, 404);
+      if (req.method !== 'POST' || !apiPath) return json({ error: 'not_found' }, 404);
       const origin = req.headers.get('origin');
       if (origin && !ORIGIN_OK.test(origin)) return json({ status: 'bad_origin' }, 403);
       const text = await req.text();

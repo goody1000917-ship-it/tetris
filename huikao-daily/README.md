@@ -6,24 +6,26 @@
 | 放在哪裡 | 紀錄存在哪 |
 |---|---|
 | claude.ai Artifact | Artifact 的 db（用 claude.ai 帳號同步） |
-| 自己的網站（GitHub Pages、happygoody.net） | `huikao-worker`（Cloudflare Worker + D1），用「同步碼」跨裝置 |
+| 自己的網址（huikao.happygoody.net，或 GitHub Pages） | `huikao-worker`（Cloudflare Worker + D1），用「同步碼」跨裝置 |
 | 本機或 http | 瀏覽器的 localStorage |
 
-## 放到自己的網址
+## 放到自己的網址（Cloudflare）
 
-1. **部署同步 API**（只要做一次）
-   ```
-   cd huikao-worker
-   npx wrangler@latest d1 create huikao-daily        # 把印出來的 database_id 填進 wrangler.jsonc
-   npx wrangler@latest d1 migrations apply huikao-daily --remote
-   npx wrangler@latest deploy                        # 綁到 huikao-api.happygoody.net（wrangler.jsonc 的 routes）
-   ```
-   要用別的網域就改 `wrangler.jsonc` 的 `routes`，並把 `huikao-daily/index.html` 裡的 `API_BASE` 改成同一個網址。
-   允許的來源在 `huikao-worker/src/index.js` 的 `ORIGIN_OK`（目前：goody1000917-ship-it.github.io、*.happygoody.net、localhost）。
-2. **放靜態檔**：整個 `huikao-daily/` 資料夾（`index.html`、`questions.json`、`manifest.webmanifest`、`sw.js`、`icon.svg`）放到網站上即可。
-   這個 repo 用 GitHub Pages 發布 `master`，所以合併到 `master` 後網址就是
-   `https://goody1000917-ship-it.github.io/tetris/huikao-daily/`。
-3. 在手機瀏覽器打開後可以「加到主畫面」，之後像 app 一樣開，沒網路也能做題（作答會在重新連線後下次打開時以雲端為準）。
+一個 Worker 同時提供網頁（Workers Static Assets，來源是這個資料夾）和同步 API（D1），網址是 **https://huikao.happygoody.net**。
+需要 Cloudflare 帳號權限：Workers Scripts 編輯、D1 編輯、happygoody.net 這個 zone 的 Workers Routes 與 DNS 編輯（自訂網域用）。
+
+```
+cd huikao-worker
+npx wrangler@latest d1 create huikao-daily        # 把印出來的 database_id 填進 wrangler.jsonc
+npx wrangler@latest d1 migrations apply huikao-daily --remote
+npx wrangler@latest deploy                        # 綁到 huikao.happygoody.net（wrangler.jsonc 的 routes）
+```
+
+之後只要改了題庫或網頁，再跑一次 `npx wrangler@latest deploy` 就更新。
+要用別的子網域就改 `wrangler.jsonc` 的 `routes`；網頁在 *.happygoody.net 上會自動用同一個網域的 `/api`。
+同一份網頁也放在 GitHub Pages（master 分支）：https://goody1000917-ship-it.github.io/tetris/huikao-daily/ ，它會連到 huikao.happygoody.net/api 同步。
+
+手機瀏覽器打開後可以「加到主畫面」，之後像 app 一樣開，沒網路也能做題。
 
 同步碼：網頁第一次在自己的網址打開時會產生一組 32 字的同步碼，存在瀏覽器裡並顯示在「設定」。在另一台裝置貼上同一組，就看到同一份進度。Worker 只存同步碼的 sha-256。
 

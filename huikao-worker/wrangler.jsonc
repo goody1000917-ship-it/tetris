@@ -1,15 +1,17 @@
 {
-  // 會考每日練 sync API (Cloudflare Worker + D1), same shape as leaderboard-worker.
+  // 會考每日練 on Cloudflare: one Worker serves the static site (Workers Static Assets from ../huikao-daily)
+  // and the sync API (POST /api, D1) at huikao.happygoody.net. Same shape as leaderboard-worker.
   // First time:  cd huikao-worker && npx wrangler@latest d1 create huikao-daily   -> paste database_id below
   //              npx wrangler@latest d1 migrations apply huikao-daily --remote
   // Deploy:      npx wrangler@latest deploy
-  "name": "huikao-daily-api",
+  "name": "huikao-daily",
   "main": "src/index.js",
   "compatibility_date": "2026-09-18",
   "workers_dev": false,
   "routes": [
-    { "pattern": "huikao-api.happygoody.net", "custom_domain": true }
+    { "pattern": "huikao.happygoody.net", "custom_domain": true }
   ],
+  "assets": { "directory": "../huikao-daily", "not_found_handling": "none" },
   "d1_databases": [
     {
       "binding": "DB",

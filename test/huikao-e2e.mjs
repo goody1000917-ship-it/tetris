@@ -16,7 +16,7 @@ const db = await mf.getD1Database('DB');
 for (const s of fs.readFileSync(here('../huikao-worker/migrations/0001_init.sql'), 'utf8').replace(/--.*$/gm, '').split(';').map(x => x.trim()).filter(Boolean)) await db.prepare(s).run();
 
 // serve the site with the API pointed at the local worker (and the skeleton metas the artifact host adds)
-const html = '<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' + fs.readFileSync(path.join(SITE, 'index.html'), 'utf8').replace("var API_BASE = 'https://huikao-api.happygoody.net';", "var API_BASE = 'http://localhost:8787';");
+const html = '<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' + fs.readFileSync(path.join(SITE, 'index.html'), 'utf8').replace(/var API_BASE = [^\n]*;/, "var API_BASE = 'http://localhost:8787';");
 const server = http.createServer((req, res) => {
   const u = req.url.split('?')[0];
   if (u === '/' || u === '/index.html') { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); return res.end(html); }
