@@ -662,7 +662,11 @@ function render() {
 }
 function subjectChip(q) { return '<span class="chip ' + q.subject + '">' + (q.subject === 'math' ? '數學' : esc(q.area || '社會')) + '</span>'; }
 function unitLabel(unit) { var m = MATH_META[unit]; if (m) return m[0] + '. ' + m[1]; var q = S.bank.filter(function (x) { return x.unit === unit; })[0]; return q ? q.unit_name : unit; }
-function offlineNote() { return S.offline ? '<div class="notice">現在連不上雲端，先用這台裝置上次同步的紀錄。這段時間的作答只會存在這台裝置。</div>' : ''; }
+function offlineNote() {
+  if (!S.offline) return '';
+  var everSynced = !!(lsRead().cards && Object.keys(lsRead().cards).length);
+  return '<div class="notice">' + (everSynced ? '現在連不上雲端，先用這台裝置上次同步的紀錄。這段時間的作答只會存在這台裝置。' : '同步伺服器還沒連上，紀錄先只存在這台裝置。等它上線後，之後的作答就會自動同步。') + '</div>';
+}
 function renderToday() {
   var ses = S.session; if (!ses) ensureDaily(), ses = S.session;
   var total = ses.ids.length, done = ses.ids.filter(function (id) { return ses.answered[id]; }).length;
