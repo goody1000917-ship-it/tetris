@@ -519,6 +519,22 @@ function syncCode() {
   }
   return c;
 }
+// A second phone joins the same record either by opening a link that carries the code (#join=…) or by typing
+// the same name + password, which derive the code; nothing is sent anywhere until the page calls the API.
+function joinFromHash() {
+  var m = /^#join=([0-9a-f]{32})$/.exec(location.hash || '');
+  if (!m) return false;
+  try { localStorage.setItem(CODE_KEY, m[1]); localStorage.removeItem(LS_KEY); } catch (e) {}
+  try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+  return true;
+}
+function codeFromLogin(name, pin) {
+  var text = 'huikao|' + name.trim().toLowerCase() + '|' + pin;
+  return crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)).then(function (buf) {
+    return Array.prototype.map.call(new Uint8Array(buf), function (x) { return (x < 16 ? '0' : '') + x.toString(16); }).join('').slice(0, 32);
+  });
+}
+function joinLink(code) { return location.origin + location.pathname + '#join=' + code; }
 function remoteStore(api, code) {
   var write = chained(), local = localStore();
   function call(body) {
@@ -704,6 +720,12 @@ function render() {
 }
 function subjectChip(q) { return '<span class="chip ' + q.subject + '">' + (q.subject === 'math' ? '數學' : esc(q.area || '社會')) + '</span>'; }
 function unitLabel(unit) { var m = MATH_META[unit]; if (m) return m[0] + '. ' + m[1]; var q = S.bank.filter(function (x) { return x.unit === unit; })[0]; return q ? q.unit_name : unit; }
+function freshNote() {
+  if (S.store.kind !== 'remote' || S.offline) return '';
+  var any = false; for (var k in S.cards) { any = true; break; }
+  if (any) return '';
+  return '<div class="notice">這台手機是一份新的空白紀錄。如果你在別台手機已經做過，到「設定」用連結或名稱密碼接上，進度就會一樣。</div>';
+}
 function offlineNote() {
   if (!S.offline) return '';
   var everSynced = !!(lsRead().cards && Object.keys(lsRead().cards).length);
@@ -712,7 +734,7 @@ function offlineNote() {
 function renderToday() {
   var ses = S.session; if (!ses) ensureDaily(), ses = S.session;
   var total = ses.ids.length, done = ses.ids.filter(function (id) { return ses.answered[id]; }).length;
-  var head = offlineNote();
+  var head = offlineNote() + freshNote();
   if (ses.kind === 'unit') head += '<div class="row between"><span class="chip">加練：' + esc(unitLabel(ses.unit)) + '</span><button class="btn mini" data-act="back-daily">回到今天的題目</button></div>';
   if (ses.kind === 'wrong') head += '<div class="row between"><span class="chip">重做錯題</span><button class="btn mini" data-act="back-daily">回到今天的題目</button></div>';
   if (!total) {
@@ -855,11 +877,16 @@ function renderSettings() {
   html += '<section class="card"><h2>怎麼算「學會」</h2><p class="small" style="margin:8px 0 0">答對後這題會在 1、3、7、14 天後各再出一次，間隔越拉越長，剛好在快忘記的時候出現。連第一次共五次都答對就算學會，30 天後再確認一次，之後每兩個月再確認。答錯就回到起點，明天再出；答對後按「其實是猜的」也會回到起點。同一題一天只算一次，當天重做不會往上爬。答對兩次以後才會出現「我確定會了」，按了就直接算學會。</p>';
   html += '<p class="small muted" style="margin:8px 0 0">題庫：數學 ' + counts.math + ' 題、社會 ' + counts.social + ' 題，只有中等與難題。</p></section>';
   if (S.store.kind === 'remote' || (S.store.kind === 'local' && !IN_CLAUDE && S.syncCode)) {
-    html += '<section class="card"><h2>換裝置也能繼續</h2><p class="small" style="margin:8px 0 0">你的紀錄用這組同步碼存在雲端。在另一台手機或電腦打開同一個網址，把同步碼貼進去，就會看到同一份進度。不要把它給別人，拿到的人就能看到並改你的紀錄。</p>';
-    html += '<div class="code" id="synccode" style="margin-top:10px">' + esc(S.syncCode) + '</div><div class="actions"><button class="btn mini" data-act="copy-code">複製同步碼</button></div>';
-    html += '<div class="field"><label for="othercode">用另一台裝置的同步碼</label><input id="othercode" inputmode="text" autocomplete="off" spellcheck="false" placeholder="貼上 32 個字的同步碼" style="width:100%"><span class="hint">切換後這台裝置會改看那組紀錄；原本這台的紀錄還在雲端，用原本的同步碼可以切回來。</span></div>';
-    html += '<div class="actions"><button class="btn" data-act="use-code">切換到這組</button></div>';
-    html += '<p class="small muted" style="margin:10px 0 0">狀態：' + (S.store.kind === 'remote' ? (S.offline ? '離線，使用上次同步的紀錄' : '已連上雲端') : '只存在這台裝置') + '</p></section>';
+    html += '<section class="card"><h2>換手機也能繼續</h2><p class="small" style="margin:8px 0 0">每台手機第一次打開都是一份新的空白紀錄。要在另一台手機看到同一份進度，用下面任一種方式接上。</p>';
+    html += '<h3 style="margin-top:12px">方法一：傳連結給另一台手機</h3><p class="small muted" style="margin:4px 0 0">複製後用 LINE 傳給自己，在另一台手機點開就接上了。這個連結等於你的鑰匙，不要傳給別人。</p>';
+    html += '<div class="actions"><button class="btn primary mini" data-act="copy-link">複製接上用的連結</button></div>';
+    html += '<h3 style="margin-top:14px">方法二：用名稱和密碼</h3><p class="small muted" style="margin:4px 0 0">在每台手機都輸入同一組名稱和密碼，就會是同一份紀錄。記得住就好，不用很複雜。</p>';
+    html += '<div class="field"><label for="loginName">名稱</label><input id="loginName" autocomplete="username" placeholder="例如 小明" style="width:100%"></div>';
+    html += '<div class="field"><label for="loginPin">密碼</label><input id="loginPin" type="password" autocomplete="current-password" placeholder="至少 4 個字" style="width:100%"></div>';
+    html += '<div class="actions"><button class="btn" data-act="login">用這組名稱和密碼</button></div>';
+    html += '<details style="margin-top:12px"><summary><span class="small muted">進階：直接用同步碼</span></summary><div class="code" id="synccode" style="margin-top:6px">' + esc(S.syncCode) + '</div><div class="actions"><button class="btn mini" data-act="copy-code">複製同步碼</button></div>';
+    html += '<div class="field"><label for="othercode">貼上另一台手機的同步碼</label><input id="othercode" inputmode="text" autocomplete="off" spellcheck="false" placeholder="32 個字" style="width:100%"></div><div class="actions"><button class="btn mini" data-act="use-code">切換到這組</button></div></details>';
+    html += '<p class="small muted" style="margin:10px 0 0">狀態：' + (S.store.kind === 'remote' ? (S.offline ? '離線，使用上次同步的紀錄' : '已連上雲端') : '只存在這台裝置') + '。切換到別的紀錄後，這台原本的紀錄還在雲端，用原本的連結或同步碼可以切回來。</p></section>';
   } else {
     html += '<section class="card"><h2>紀錄存在哪裡</h2><p class="small muted" style="margin:8px 0 0">' + (S.store.kind === 'cloud' ? '存在雲端，用同一個 claude.ai 帳號在任何裝置打開都會同步。' : '只存在這個瀏覽器裡。清掉瀏覽器資料就會不見。') + '</p></section>';
   }
@@ -902,6 +929,19 @@ document.addEventListener('click', function (e) {
     S.store.setSettings(S.settings).then(function () { toast('設定已儲存，明天開始生效。'); }).catch(saveErr);
     render();
   }
+  else if (act === 'copy-link') {
+    var link = joinLink(S.syncCode || '');
+    var fb = function () { toast('複製不了，改用下面的同步碼。'); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(function () { toast('連結已複製，傳到另一台手機點開就接上。'); }, fb); else fb();
+  }
+  else if (act === 'login') {
+    var nm = (document.getElementById('loginName').value || '').trim(), pin = document.getElementById('loginPin').value || '';
+    if (nm.length < 1 || pin.length < 4) { toast('名稱要填，密碼至少 4 個字。'); return; }
+    codeFromLogin(nm, pin).then(function (code) {
+      try { localStorage.setItem(CODE_KEY, code); localStorage.removeItem(LS_KEY); } catch (err) {}
+      location.reload();
+    });
+  }
   else if (act === 'copy-code') {
     var code = S.syncCode || '';
     var fallback = function () { var el = document.getElementById('synccode'); if (el) { var r = document.createRange(); r.selectNodeContents(el); var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r); } toast('已選取，長按複製。'); };
@@ -941,6 +981,7 @@ document.addEventListener('visibilitychange', function () {
 });
 
 function pickStore() {
+  if (!IN_CLAUDE && joinFromHash()) { /* code swapped in; the record is loaded below with it */ }
   if (IN_CLAUDE) {
     return Promise.resolve().then(function () { return window.claude.use('db'); }).catch(function () { return null; })
       .then(function (db) { return db ? dbStore(db) : localStore(); });

@@ -53,6 +53,23 @@ ok(await p2.evaluate(() => Object.keys(S.cards).length) === 0, 'fresh device sta
 await p2.evaluate(c => localStorage.setItem('huikao-sync-code', c), code);
 await p2.reload({ waitUntil: 'networkidle' }); await p2.waitForSelector('.opt, .verdict');
 ok(await p2.evaluate(() => S.cards[S.session.ids[0]] && S.cards[S.session.ids[0]].wrong) === 1, 'second device with the same code sees the record');
+// a third device joins through the share link; a fourth through name + password typed on two devices
+const ctx3 = await browser.newContext({ viewport: { width: 400, height: 860 } }); const p3 = await ctx3.newPage();
+await p3.goto(URL_.replace('?sync=1', '') + '?sync=1#join=' + code, { waitUntil: 'networkidle' }); await p3.waitForSelector('.opt, .verdict');
+ok(await p3.evaluate(() => S.syncCode) === code && await p3.evaluate(() => S.cards[S.session.ids[0]] && S.cards[S.session.ids[0]].wrong) === 1, 'join link adopts the code and loads the record');
+ok(await p3.evaluate(() => location.hash) === '', 'join hash is removed from the address');
+const ctx4 = await browser.newContext({ viewport: { width: 400, height: 860 } }); const p4 = await ctx4.newPage();
+await p4.goto(URL_, { waitUntil: 'networkidle' }); await p4.waitForSelector('.opt');
+await p4.click('[data-tab=settings]'); await p4.fill('#loginName', ' 小明 '); await p4.fill('#loginPin', 'abcd'); await p4.click('[data-act=login]');
+await p4.waitForSelector('.opt'); const codeLogin = await p4.evaluate(() => S.syncCode);
+const ctx5 = await browser.newContext({ viewport: { width: 400, height: 860 } }); const p5 = await ctx5.newPage();
+await p5.goto(URL_, { waitUntil: 'networkidle' }); await p5.waitForSelector('.opt');
+await p5.click('[data-tab=settings]'); await p5.fill('#loginName', '小明'); await p5.fill('#loginPin', 'abcd'); await p5.click('[data-act=login]');
+await p5.waitForSelector('.opt');
+ok(/^[0-9a-f]{32}$/.test(codeLogin) && await p5.evaluate(() => S.syncCode) === codeLogin, 'same name + password on two devices -> same record');
+ok(codeLogin !== code, 'login code differs from the random one');
+ok(await p4.evaluate(() => document.querySelector('.notice') !== null), 'fresh device shows the join hint');
+await ctx3.close(); await ctx4.close(); await ctx5.close();
 // offline: worker down -> mirrored record, offline notice
 await mf.dispose();
 await page.reload({ waitUntil: 'networkidle' }); await page.waitForSelector('.opt, .verdict');
