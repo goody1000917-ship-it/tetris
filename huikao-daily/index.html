@@ -64,7 +64,21 @@ button.chip.on{color:var(--accent-ink);background:var(--accent);border-color:var
 .prog{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
 .bar{flex:1;height:6px;border-radius:999px;background:var(--line-soft);overflow:hidden;min-width:60px}
 .bar i{display:block;height:100%;background:var(--accent);border-radius:999px;transition:width .25s ease}
-.stem{font-size:17px;line-height:1.75;white-space:pre-wrap;word-break:break-word;margin:12px 0 4px;text-wrap:pretty}
+.stem{font-size:17px;line-height:1.75;word-break:break-word;margin:12px 0 4px;text-wrap:pretty}
+.rt-wrap{overflow-x:auto;max-width:100%;margin:8px 0}
+.rt-table{border-collapse:collapse;width:100%;font-size:15px;line-height:1.5;font-variant-numeric:tabular-nums}
+.rt-table th,.rt-table td{border:1px solid var(--line);padding:6px 8px;text-align:center;vertical-align:middle;word-break:break-word}
+.rt-table td{white-space:nowrap}
+.rt-table td:has(+ td){white-space:normal}
+.rt-table tr>*:last-child{white-space:normal}
+.rt-table th{background:var(--accent-soft);color:var(--ink);font-weight:600}
+.rt-table th[scope=row]{background:var(--bg);text-align:left}
+.rt-kv{display:grid;grid-template-columns:max-content 1fr;gap:4px 12px;margin:8px 0;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-size:15px;line-height:1.6}
+.rt-kv b{font-weight:600;color:var(--muted)}
+.rt-kv span{min-width:0;word-break:break-word}
+.rt-h{font-weight:700;margin:12px 0 2px}
+.rt-h+.rt-kv{margin-top:4px}
+.expl p{white-space:normal}
 .fig{margin:8px auto 4px;max-width:320px}
 .fig svg{display:block;width:100%;height:auto;max-width:100%;color:var(--ink)}
 .opts{display:grid;gap:8px;margin-top:12px}
@@ -186,6 +200,35 @@ kbd{font:inherit;font-size:12px;border:1px solid var(--line);border-bottom-width
 
 <script>
 /*@logic-start*/
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+// Question text comes as plain lines. Space-aligned data rows become a real table, runs of 「名稱：內容」 lines
+// become a label/value panel, and 【標題】 lines become headings; everything else is escaped text with line breaks.
+var RT_SEP = /\s{2,}|\t|　+|\s*[|｜]\s*/, RT_KV = /^([^：:\s]{1,8})[：:]\s*(\S.*)$/, RT_H = /^【(.+)】$/, RT_NUM = /^[\d.,%°C−\-＋+~～\/]+$/;
+function rtCells(l) { return l.trim().split(RT_SEP).filter(function (c) { return c !== ''; }); }
+function rtIsRow(l) { return rtCells(l).length >= 3; }
+function richText(text) {
+  var lines = String(text == null ? '' : text).split('\n'), out = [], i = 0, m;
+  while (i < lines.length) {
+    var l = lines[i], t = l.trim();
+    if (rtIsRow(l) && i + 1 < lines.length && rtIsRow(lines[i + 1])) {
+      var rows = []; while (i < lines.length && rtIsRow(lines[i])) { rows.push(rtCells(lines[i])); i++; }
+      var w = Math.max.apply(null, rows.map(function (r) { return r.length; }));
+      out.push('<div class="rt-wrap"><table class="rt-table">' + rows.map(function (r, ri) {
+        var tds = []; for (var c = 0; c < w; c++) { var v = r[c] == null ? '' : r[c]; var tag = ri === 0 ? 'th' : (c === 0 && !RT_NUM.test(v) ? 'th scope="row"' : 'td'); tds.push('<' + tag + '>' + esc(v) + '</' + tag.split(' ')[0] + '>'); }
+        return '<tr>' + tds.join('') + '</tr>';
+      }).join('') + '</table></div>');
+      continue;
+    }
+    if ((m = RT_KV.exec(t)) && i + 1 < lines.length && RT_KV.test(lines[i + 1].trim())) {
+      var kv = []; while (i < lines.length && (m = RT_KV.exec(lines[i].trim()))) { kv.push(m); i++; }
+      out.push('<div class="rt-kv">' + kv.map(function (x) { return '<b>' + esc(x[1]) + '</b><span>' + esc(x[2]) + '</span>'; }).join('') + '</div>');
+      continue;
+    }
+    if ((m = RT_H.exec(t))) { out.push('<div class="rt-h">' + esc(m[1]) + '</div>'); i++; continue; }
+    out.push(esc(l) + '<br>'); i++;
+  }
+  return out.join('').replace(/(<br>)+$/, '').replace(/(<br>)+(<div class="rt-)/g, '$2').replace(/(<\/div>)(<br>)+/g, '$1');
+}
 // ---------- Spaced repetition (Leitner boxes on a forgetting-curve schedule) ----------
 var EXAM_DATE = '2027-05-15';
 var INTERVALS = [1, 3, 7, 14, 30];   // days until the next review after the 1st..4th correct answer; [4] is the check after 學會
@@ -502,7 +545,6 @@ function remoteStore(api, code) {
 var S = { bank: [], byId: {}, cards: {}, days: {}, settings: Object.assign({}, DEFAULT_SETTINGS), today: toDateStr(new Date()), tab: 'today', session: null, store: null, ready: false, error: null, confirmReset: false, offline: false, wrongFilter: 'all', qStart: 0, qId: null };
 var $view = document.getElementById('view');
 
-function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
 // Figures come from the question bank as SVG text. Parse, keep only drawing elements, drop every attribute that
 // could run script or load something, then re-serialize. Anything that does not parse is simply not drawn.
 var SVG_ALLOW = { svg: 1, g: 1, path: 1, line: 1, polyline: 1, polygon: 1, rect: 1, circle: 1, ellipse: 1, text: 1, tspan: 1, defs: 1, marker: 1, title: 1 };
@@ -687,7 +729,7 @@ function renderToday() {
   var html = head + '<div class="prog num"><span>第 ' + (ses.idx + 1) + ' / ' + total + ' 題</span><div class="bar"><i style="width:' + Math.round(done / total * 100) + '%"></i></div><span>' + (ses.kind === 'daily' ? '複習 ' + nRev + ' · 新題 ' + (total - nRev) : done + ' 完成') + '</span></div>';
   html += '<section class="card sheet">';
   html += '<div class="row">' + subjectChip(q) + '<span class="chip">' + esc(q.unit_name) + '</span>' + (q.difficulty === '難' ? '<span class="chip hard">難</span>' : '<span class="chip">中等</span>') + (isReview ? '<span class="chip review">複習</span>' : '') + (card.wrong > 0 && !a ? '<span class="chip">之前錯過 ' + card.wrong + ' 次</span>' : '') + '</div>';
-  html += '<div class="stem">' + esc(q.stem) + '</div>';
+  html += '<div class="stem">' + richText(q.stem) + '</div>';
   var svg = safeSvg(q.figure_svg); if (svg) html += '<div class="fig">' + svg + '</div>';
   html += '<div class="opts">';
   order.forEach(function (oi, i) {
@@ -704,7 +746,7 @@ function renderToday() {
     if (!a.ok) {
       html += '<div class="why"><div class="lbl">這題錯在哪？點一下，進度頁會幫你統計。</div><div class="row">' + Object.keys(WHY).map(function (k) { return '<button class="chip' + (a.why === k ? ' on' : '') + '" data-act="why" data-why="' + k + '" data-id="' + esc(id) + '">' + WHY[k] + '</button>'; }).join('') + '</div></div>';
     }
-    html += '<div class="expl"><div class="lbl">詳解</div><p>' + esc(normalizeExpl(q.explanation)) + '</p></div>';
+    html += '<div class="expl"><div class="lbl">詳解</div><p>' + richText(normalizeExpl(q.explanation)) + '</p></div>';
     html += '<div class="actions">';
     if (ses.idx > 0) html += '<button class="btn quiet" data-act="prev">上一題</button>';
     if (a.ok && !a.guess) html += '<button class="btn quiet" data-act="guess" data-id="' + esc(id) + '">其實是猜的</button>';
@@ -758,7 +800,7 @@ function renderWrong() {
       var c = cardOf(S.cards, q.id);
       var why = c.why ? Object.keys(c.why).filter(function (k) { return c.why[k] > 0 && WHY[k]; }).map(function (k) { return WHY[k] + ' ' + c.why[k]; }).join('、') : '';
       html += '<div class="wrong"><div class="row">' + subjectChip(q) + '<span class="chip">' + esc(q.unit_name) + '</span>' + (q.difficulty === '難' ? '<span class="chip hard">難</span>' : '') + '</div>';
-      html += '<div class="stem-s">' + esc(q.stem) + '</div>';
+      html += '<div class="stem-s">' + esc(q.stem.replace(/\s+/g, ' ')) + '</div>';
       html += '<div class="row between"><span class="meta">錯 ' + c.wrong + ' 次 · 對 ' + c.correct + ' 次' + (why ? ' · ' + esc(why) : '') + (c.due ? ' · 下次 ' + c.due.slice(5).replace('-', '/') : '') + '</span><button class="btn mini" data-act="redo-one" data-id="' + esc(q.id) + '">重做</button></div></div>';
     });
     html += '</div>';
