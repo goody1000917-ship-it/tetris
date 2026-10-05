@@ -19,7 +19,7 @@ const mig = fs.readFileSync(here('../huikao-worker/migrations/0001_init.sql'), '
 for (const s of mig) await db.prepare(s).run();
 for (const s of mig) await db.prepare(s).run();                 // re-runnable
 
-const API = 'https://huikao.happygoody.net';
+const API = 'https://daily.happygoody.net';
 const post = async (body, headers = {}) => {
   const r = await mf.dispatchFetch(API + '/', { method: 'POST', headers: { 'content-type': 'text/plain;charset=UTF-8', ...headers }, body: typeof body === 'string' ? body : JSON.stringify(body) });
   return { http: r.status, ...(await r.json().catch(() => ({}))) };
@@ -42,7 +42,7 @@ ok((await post({ op: 'nope', code: A })).status === 'bad_request', 'unknown op')
 ok((await post(JSON.stringify({ op: 'card', code: A, key: 'M01-01', data: { s: 'x'.repeat(40000) } }))).http === 413, 'huge body 413');
 ok((await post({ op: 'load', code: A }, { origin: 'https://evil.example' })).status === 'bad_origin', 'foreign origin rejected');
 ok((await post({ op: 'load', code: A }, { origin: 'https://goody1000917-ship-it.github.io' })).status === 'ok', 'github pages origin ok');
-ok((await post({ op: 'load', code: A }, { origin: 'https://huikao.happygoody.net' })).status === 'ok', 'own domain origin ok');
+ok((await post({ op: 'load', code: A }, { origin: 'https://daily.happygoody.net' })).status === 'ok', 'own domain origin ok');
 ok((await post({ op: 'load', code: A }, { origin: 'http://localhost:8765' })).status === 'ok', 'localhost origin ok');
 
 // ---------- empty record ----------

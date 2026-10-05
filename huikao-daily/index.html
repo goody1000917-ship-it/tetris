@@ -413,7 +413,7 @@ function summarize(bank, cards, days, today) {
 // Three homes for the record, picked at boot: the claude.ai artifact db when the page runs inside claude.ai; the
 // sync worker (Cloudflare D1) when it runs on its own site; otherwise this browser's localStorage. The remote
 // store also mirrors into localStorage so a phone without signal still opens with the last known record.
-var API_BASE = /(^|\.)happygoody\.net$/.test(location.hostname) ? location.origin + '/api' : 'https://huikao.happygoody.net/api';   // same origin on the Cloudflare domain
+var API_BASE = /(^|\.)happygoody\.net$/.test(location.hostname) ? location.origin + '/api' : 'https://daily.happygoody.net/api';   // same origin on the Cloudflare domain
 var IN_CLAUDE = !!(window.claude && typeof window.claude.use === 'function');
 var LS_KEY = 'huikao-daily-v1', CODE_KEY = 'huikao-sync-code';
 function clone(o) { return o == null ? o : JSON.parse(JSON.stringify(o)); }   // store snapshots are frozen; never mutate them
