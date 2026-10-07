@@ -260,7 +260,25 @@ function hashStr(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h
 function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 function shuffled(n, rng) { var a = []; for (var i = 0; i < n; i++) a.push(i); for (var j = n - 1; j > 0; j--) { var k = Math.floor(rng() * (j + 1)); var t = a[j]; a[j] = a[k]; a[k] = t; } return a; }
 
-function newCard() { return { box: 0, due: null, seen: 0, correct: 0, wrong: 0, streak: 0, mastered: false, manual: false, last: null, why: null }; }
+function newCard() { return { box: 0, due: null, seen: 0, correct: 0, wrong: 0, streak: 0, mastered: false, manual: false, last: null, why: null, shown: null, lastQ: null }; }
+// A question and its siblings (same skill, different numbers or source material) share one card. The first time
+// the original is shown; every later review shows the sibling seen least often, never the one shown last time,
+// so a repeat tests the concept rather than the memory of one answer.
+function chooseVariant(orig, card, seed) {
+  var members = [orig].concat(orig.variants || []);
+  if (members.length === 1 || !card || card.seen === 0) return orig;
+  var shown = card.shown || {};
+  var pool = members.filter(function (m) { return m.id !== card.lastQ; });
+  if (!pool.length) pool = members;
+  var min = Math.min.apply(null, pool.map(function (m) { return shown[m.id] || 0; }));
+  var best = pool.filter(function (m) { return (shown[m.id] || 0) === min; });
+  return best[Math.floor(mulberry32(hashStr(seed))() * best.length)];
+}
+function noteShown(card, qid) {
+  var c = Object.assign(newCard(), card);
+  var sh = Object.assign({}, c.shown || {}); sh[qid] = (sh[qid] || 0) + 1; c.shown = sh; c.lastQ = qid;
+  return c;
+}
 function cardOf(cards, id) { var c = cards[id]; return c ? Object.assign(newCard(), c) : newCard(); }
 function maintainDate(today) { return addDays(today, Math.max(7, Math.min(MAINTAIN_DAYS, daysBetween(today, EXAM_DATE) - 7))); }
 
@@ -615,7 +633,7 @@ function ensureDaily() {
   }
   var ids = day.ids.filter(function (id) { return S.byId[id]; });
   var idx = 0; while (idx < ids.length && day.answered[ids[idx]]) idx++;
-  S.session = { kind: 'daily', ids: ids, idx: idx, answered: day.answered, reviews: {}, order: {} };
+  S.session = { kind: 'daily', ids: ids, idx: idx, answered: day.answered, reviews: {}, order: {}, shown: {} };
   (day.reviews || []).forEach(function (id) { S.session.reviews[id] = true; });
 }
 function leftoverDue() {
@@ -638,7 +656,7 @@ function addMore(n) {
   render();
 }
 function startSession(kind, ids, extra) {
-  S.session = Object.assign({ kind: kind, ids: ids, idx: 0, answered: {}, reviews: {}, order: {} }, extra || {});
+  S.session = Object.assign({ kind: kind, ids: ids, idx: 0, answered: {}, reviews: {}, order: {}, shown: {} }, extra || {});
   S.tab = 'today'; render(); window.scrollTo(0, 0);
 }
 function startUnit(unit) {
@@ -654,20 +672,29 @@ function startWrong(ids) {
 }
 // Display order of the four options for one presentation: shuffled per day so a repeat cannot be answered from
 // position memory, except when the explanation refers to options by position.
+// Which member of the family to show for this presentation: fixed once chosen within the session, and stored
+// with the answer so a reload shows the same one.
+function displayFor(ses, id, card) {
+  var orig = S.byId[id]; if (!orig) return null;
+  var a = ses.answered[id]; if (a && a.q && S.byId[a.q]) return S.byId[a.q];
+  if (ses.shown[id] && S.byId[ses.shown[id]]) return S.byId[ses.shown[id]];
+  var q = chooseVariant(orig, card, id + '|' + S.today + '|' + card.seen);
+  ses.shown[id] = q.id;
+  return q;
+}
 function orderFor(ses, q, card) {
   if (!ses.order[q.id]) ses.order[q.id] = POS_REF.test(q.explanation) ? [0, 1, 2, 3] : shuffled(4, mulberry32(hashStr(q.id + '|' + S.today + '|' + card.seen)));
   return ses.order[q.id];
 }
 function answer(pick) {
   if (rollover()) { render(); return; }
-  var ses = S.session, id = ses.ids[ses.idx], q = S.byId[id];
+  var ses = S.session, id = ses.ids[ses.idx], card = cardOf(S.cards, id), q = displayFor(ses, id, card);
   if (!q || ses.answered[id]) return;
   var ok = pick === q.answer;
   var sec = S.qId === id && S.qStart ? Math.min(900, Math.round((Date.now() - S.qStart) / 1000)) : null;
-  var card = cardOf(S.cards, id);
   var extraPractice = ses.kind !== 'daily' && card.seen > 0 && !isDue(card, S.today);
-  ses.answered[id] = { ok: ok, pick: pick, at: new Date().toISOString(), sec: sec, extra: extraPractice || undefined };
-  S.cards[id] = (extraPractice && ok) ? countOnly(card, S.today) : applyAnswer(card, ok, S.today);
+  ses.answered[id] = { ok: ok, pick: pick, q: q.id, at: new Date().toISOString(), sec: sec, extra: extraPractice || undefined };
+  S.cards[id] = noteShown((extraPractice && ok) ? countOnly(card, S.today) : applyAnswer(card, ok, S.today), q.id);
   persistCard(id);
   if (ses.kind === 'daily') persistDay();
   render();
@@ -743,14 +770,16 @@ function renderToday() {
     return;
   }
   if (ses.idx >= total) { renderSummary(head, ses, total, done); return; }
-  var id = ses.ids[ses.idx], q = S.byId[id], a = ses.answered[id], card = cardOf(S.cards, id);
+  var id = ses.ids[ses.idx], card = cardOf(S.cards, id), q = displayFor(ses, id, card), a = ses.answered[id];
+  if (!q) { ses.idx++; render(); return; }
   if (!a && S.qId !== id) { S.qId = id; S.qStart = Date.now(); }
   var order = orderFor(ses, q, card);
+  var sibling = q.id !== id;
   var isReview = !!ses.reviews[id];
   var nRev = ses.ids.filter(function (x) { return ses.reviews[x]; }).length;
   var html = head + '<div class="prog num"><span>第 ' + (ses.idx + 1) + ' / ' + total + ' 題</span><div class="bar"><i style="width:' + Math.round(done / total * 100) + '%"></i></div><span>' + (ses.kind === 'daily' ? '複習 ' + nRev + ' · 新題 ' + (total - nRev) : done + ' 完成') + '</span></div>';
   html += '<section class="card sheet">';
-  html += '<div class="row">' + subjectChip(q) + '<span class="chip">' + esc(q.unit_name) + '</span>' + (q.difficulty === '難' ? '<span class="chip hard">難</span>' : '<span class="chip">中等</span>') + (isReview ? '<span class="chip review">複習</span>' : '') + (card.wrong > 0 && !a ? '<span class="chip">之前錯過 ' + card.wrong + ' 次</span>' : '') + '</div>';
+  html += '<div class="row">' + subjectChip(q) + '<span class="chip">' + esc(q.unit_name) + '</span>' + (q.difficulty === '難' ? '<span class="chip hard">難</span>' : '<span class="chip">中等</span>') + (isReview ? '<span class="chip review">複習</span>' : '') + (sibling ? '<span class="chip">同觀念換一題</span>' : '') + (card.wrong > 0 && !a ? '<span class="chip">之前錯過 ' + card.wrong + ' 次</span>' : '') + '</div>';
   html += '<div class="stem">' + richText(q.stem) + '</div>';
   var svg = safeSvg(q.figure_svg); if (svg) html += '<div class="fig">' + svg + '</div>';
   html += '<div class="opts">';
@@ -874,7 +903,7 @@ function renderSettings() {
   html += '<div class="field"><label for="socialNew">社會新題上限</label><input type="number" id="socialNew" min="0" max="10" value="' + st.socialNew + '"><span class="hint" id="newHint">沒有複習題的日子會出 數學 ' + st.mathNew + ' + 社會 ' + st.socialNew + ' = ' + (st.mathNew + st.socialNew) + ' 題新題。</span></div>';
   html += '<label class="check"><input type="checkbox" id="hardBias"' + (st.hardBias ? ' checked' : '') + '>難題出多一點</label>';
   html += '<div class="actions"><button class="btn primary" data-act="save-settings">儲存設定</button></div><p class="small muted" style="margin:10px 0 0">改了之後，明天的題組會照新設定出；今天已經排好的不變。</p></section>';
-  html += '<section class="card"><h2>怎麼算「學會」</h2><p class="small" style="margin:8px 0 0">答對後這題會在 1、3、7、14 天後各再出一次，間隔越拉越長，剛好在快忘記的時候出現。連第一次共五次都答對就算學會，30 天後再確認一次，之後每兩個月再確認。答錯就回到起點，明天再出；答對後按「其實是猜的」也會回到起點。同一題一天只算一次，當天重做不會往上爬。答對兩次以後才會出現「我確定會了」，按了就直接算學會。</p>';
+  html += '<section class="card"><h2>怎麼算「學會」</h2><p class="small" style="margin:8px 0 0">答對後這題會在 1、3、7、14 天後各再出一次，間隔越拉越長，剛好在快忘記的時候出現。連第一次共五次都答對就算學會，30 天後再確認一次，之後每兩個月再確認。答錯就回到起點，明天再出；答對後按「其實是猜的」也會回到起點。複習時會出「同一個觀念、不同數字或資料」的替身題，不會一直看同一題。同一題一天只算一次，當天重做不會往上爬。答對兩次以後才會出現「我確定會了」，按了就直接算學會。</p>';
   html += '<p class="small muted" style="margin:8px 0 0">題庫：數學 ' + counts.math + ' 題、社會 ' + counts.social + ' 題，只有中等與難題。</p></section>';
   if (S.store.kind === 'remote' || (S.store.kind === 'local' && !IN_CLAUDE && S.syncCode)) {
     html += '<section class="card"><h2>換手機也能繼續</h2><p class="small" style="margin:8px 0 0">每台手機第一次打開都是一份新的空白紀錄。要在另一台手機看到同一份進度，用下面任一種方式接上。</p>';
@@ -995,8 +1024,11 @@ function boot(hot) {
   renderCountdown(); renderTabs();
   var bankP = fetch('questions.json', { cache: 'no-cache' }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
   Promise.all([bankP, pickStore()]).then(function (r) {
-    var data = r[0]; S.bank = Array.isArray(data) ? data : (data.questions || []);
-    S.byId = {}; S.bank.forEach(function (q) { S.byId[q.id] = q; });
+    var data = r[0], all = Array.isArray(data) ? data : (data.questions || []);
+    S.byId = {}; all.forEach(function (q) { S.byId[q.id] = q; });
+    S.bank = all.filter(function (q) { return !q.variant_of; });
+    S.bank.forEach(function (q) { q.variants = []; });
+    all.forEach(function (q) { if (q.variant_of && S.byId[q.variant_of] && !S.byId[q.variant_of].variant_of) S.byId[q.variant_of].variants.push(q); });
     S.store = r[1];
     return S.store.load().catch(function (e) {
       if (window.console) console.warn(e);

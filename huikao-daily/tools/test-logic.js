@@ -87,3 +87,19 @@ const sum = L.summarize(bank, cards, days, t); assert.equal(sum.seen, 10); asser
 const sum2 = L.summarize(bank, cards2, {}, t); assert.equal(sum2.wrongOpen, 2); assert.equal(sum2.mastered, 1);
 const ns = L.normalizeSettings({ mathNew: 5, socialNew: 5, reviewCap: 12 }); assert.equal(ns.budget, 20); assert.equal(L.normalizeSettings(null).mathNew, 4);
 console.log('all logic tests passed');
+// ---- siblings: first exposure is the original; reviews rotate, never repeating last time's member ----
+{
+  const orig = { id: 'X', variants: [{ id: 'Xv1' }, { id: 'Xv2' }] };
+  assert.equal(L.chooseVariant(orig, L.newCard(), 's').id, 'X', 'new card shows the original');
+  assert.equal(L.chooseVariant({ id: 'Y', variants: [] }, L.applyAnswer(L.newCard(), true, '2026-10-01'), 's').id, 'Y', 'no siblings -> original');
+  let c = L.noteShown(L.applyAnswer(L.newCard(), true, '2026-10-01'), 'X');
+  const second = L.chooseVariant(orig, c, 'seed1'); assert.ok(second.id !== 'X', 'second showing is a sibling: ' + second.id);
+  c = L.noteShown(L.applyAnswer(c, true, '2026-10-02'), second.id);
+  const third = L.chooseVariant(orig, c, 'seed2'); assert.ok(third.id !== second.id, 'never the same as last time');
+  assert.equal((c.shown[second.id]), 1); assert.equal(c.lastQ, second.id);
+  // least-shown wins: after X, Xv1, Xv2 each once, the next avoids lastQ and picks among the rest deterministically
+  c = L.noteShown(L.applyAnswer(c, true, '2026-10-03'), third.id);
+  const fourth = L.chooseVariant(orig, c, 'seed3'); assert.ok(fourth.id !== third.id);
+  assert.deepEqual(L.chooseVariant(orig, c, 'same'), L.chooseVariant(orig, c, 'same'), 'deterministic for one seed');
+  console.log('sibling tests passed');
+}
