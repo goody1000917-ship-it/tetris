@@ -36,6 +36,7 @@ npx wrangler@latest deploy                        # 綁到 daily.happygoody.net�
 - `manifest.webmanifest`、`sw.js`、`icon.svg`：自己架站時的 PWA 與離線快取（在 claude.ai 裡不會載入）。
 - `tools/qbank-workflow.js`：出題與盲解驗證的 Workflow 腳本。
 - `tools/build-bank.py`：把各 Workflow 的結果合併成 `questions.json`，並把正確答案的 ABCD 位置打散平均。
+- `tools/variants-workflow.js`：替身題的 Workflow（每題原題出 2 題同觀念、換數字或換材料的替身，一樣盲解驗證）；`tools/merge-variants.py` 把結果併進 `questions.json`（`variant_of` 指向原題）。
 - `tools/test-logic.js`：遺忘曲線排程與每日選題邏輯的單元測試（`node tools/test-logic.js`）。
 - `../huikao-worker/`：同步 API。測試：`cd test && npm install && node huikao-worker.test.mjs`，端到端：`node huikao-e2e.mjs`。
 
@@ -43,4 +44,5 @@ npx wrangler@latest deploy                        # 綁到 daily.happygoody.net�
 
 一天有題數預算（預設 20）：到期的複習題先出，剩下的名額才出新題（預設數學、社會各最多 4 題）。
 答對後在 1、3、7、14、30 天後各再出一次，五次都對就自動標為學會；答錯回到起點，隔天再出；答對後按「其實是猜的」也回到起點。
+複習不會出同一題：每題原題有替身題（同觀念、不同數字或材料），第一次出原題，之後每次複習輪流出替身，進度算在同一家（以原題 id 為卡片）。
 答錯可以標「觀念不會 / 粗心或算錯 / 看錯題目」，進度頁按單元統計；錯題本收集所有答錯過、還沒學會的題目。
