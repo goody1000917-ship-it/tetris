@@ -7,7 +7,7 @@
 - 正式網址：**https://daily.happygoody.net**，由 `huikao-worker`（Cloudflare Worker + Static Assets + D1）提供，使用者的手機用這個。
 - 同一份網頁也在 claude.ai Artifact（https://claude.ai/artifact/LAEuZgYabLyYAGBoizKPvQ ，紀錄存 Artifact db）和 GitHub Pages（master 分支，https://goody1000917-ship-it.github.io/tetris/huikao-daily/ ）。
 - `huikao.happygoody.net` 上是另一個 app「錯題獵人」，不是這個專案，不要動。
-- 題庫 `questions.json`：471 題原題（數學 206、社會 265）加替身題（`variant_of` 指向原題；同觀念、不同數字或材料），每題都經過第二個代理盲解驗證。
+- 題庫 `questions.json`：471 題原題（數學 206、社會 265）加 935 題替身（`variant_of` 指向原題；同觀念、不同數字或材料），每題都經過第二個代理盲解驗證。
 - 使用者是國三生，手機操作，不熟指令。用詞要簡單。
 
 ## 怎麼更新網頁

@@ -73,9 +73,13 @@ const SOLVE_SCHEMA = {
   required: ['results'],
 }
 
+const ONLY = Array.isArray(args.only) ? new Set(args.only) : null
 function genPrompt(units) {
+  const pick = ONLY
+    ? `只取 id 為 ${[...ONLY].filter(id => units.includes(id.slice(0, 3))).map(id => `「${id}」`).join('、')} 的題目（用 Grep 找 "id":"<id>" 再讀那一段）。`
+    : `只取 unit 等於 ${units.map(u => `「${u}」`).join('或')} 的題目（共約 ${units.length * 8} 題）。`
   return `你是台灣的${subjectLabel}老師。題庫檔案在 ${BANK_FILE}（JSON 陣列，每題有 id、unit、unit_name、topic、difficulty、stem、options、answer、explanation，部分有 figure_svg）。
-先用 Read 工具讀這個檔案（檔案很大，可以分段讀，或用 Grep 找出需要的題目），只取 unit 等於 ${units.map(u => `「${u}」`).join('或')} 的題目（共約 ${units.length * 8} 題）。
+先用 Read 工具讀這個檔案（檔案很大，可以分段讀，或用 Grep 找出需要的題目），${pick}
 
 對每一題原題，各寫 2 題「替身題」：學生之後複習時會看到替身而不是原題，所以替身要能驗證他是不是真的會同一個觀念，而不是記得答案。
 ${RULES}
@@ -103,6 +107,7 @@ function normalize(gen, units, counters) {
     const parent = String(q.variant_of || '').trim()
     const unit = parent.slice(0, 3)
     if (!/^[MHGC]\d{2}-\d{2}$/.test(parent) || !units.includes(unit) || !META[unit]) continue
+    if (ONLY && !ONLY.has(parent)) continue
     if (/\$|\\\(|\\frac|\\sqrt/.test(q.stem + q.options.join('') + q.explanation)) continue
     const opts = q.options.map(o => String(o).trim())
     if (new Set(opts).size !== 4 || opts.some(o => !o)) continue
@@ -142,7 +147,7 @@ async function verifyBatch(qs, key) {
   return { key, kept, dropped }
 }
 
-const counters = {}
+const counters = Object.assign({}, (args.seed && typeof args.seed === 'object') ? args.seed : {})   // existing sibling counts, so new ids continue the numbering
 const batches = args.batches.map(units => ({ key: units.join('+'), units }))
 phase('Generate')
 const results = await pipeline(
