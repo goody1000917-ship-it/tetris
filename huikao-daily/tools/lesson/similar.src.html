@@ -1,0 +1,703 @@
+<title>相似形・比例線段</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=LXGW+WenKai+TC:wght@400;700&display=swap">
+<style>
+/* Layout: one 680px reading column drawn like a squared math workbook (方格紙): sticky header with the chapter
+   name and overall progress, a strip of section chips, then the section itself. Diagrams are in pencil ink with
+   考卷藍 for the shape being talked about and 螢光黃 for the second shape; red pen marks a wrong answer and green
+   pen a right one, the same as 會考每日練. */
+:root{
+  --bg:#F1F3F6; --paper:#FFFFFF; --ink:#1B2430; --muted:#5F6B7D; --line:#D5DBE5; --line-soft:#E7EBF1;
+  --accent:#2C58B4; --accent-ink:#FFFFFF; --accent-soft:#E4ECFA;
+  --hl:#C98A00; --hl-soft:#FBF0D6;
+  --ok:#15744A; --ok-soft:#E1F3E9; --bad:#B0321F; --bad-soft:#FBE6E2;
+  --grid:rgba(44,88,180,.07); --shadow:0 1px 2px rgba(27,36,48,.06),0 8px 24px rgba(27,36,48,.06);
+  --font-body:"Noto Sans TC",system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;
+  --font-display:"LXGW WenKai TC","Noto Sans TC","PingFang TC","Microsoft JhengHei",serif;
+  --radius:14px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#11161F; --paper:#1A2130; --ink:#E9EDF3; --muted:#9BA6B9; --line:#2D3748; --line-soft:#232C3B;
+    --accent:#8AADF2; --accent-ink:#0E1626; --accent-soft:#243655;
+    --hl:#E3B55B; --hl-soft:#3A2D14;
+    --ok:#5CD095; --ok-soft:#17311F; --bad:#F39183; --bad-soft:#3B201B;
+    --grid:rgba(138,173,242,.09); --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11161F; --paper:#1A2130; --ink:#E9EDF3; --muted:#9BA6B9; --line:#2D3748; --line-soft:#232C3B;
+  --accent:#8AADF2; --accent-ink:#0E1626; --accent-soft:#243655;
+  --hl:#E3B55B; --hl-soft:#3A2D14;
+  --ok:#5CD095; --ok-soft:#17311F; --bad:#F39183; --bad-soft:#3B201B;
+  --grid:rgba(138,173,242,.09); --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.7;
+  padding-inline:16px;padding-block:0 calc(48px + env(safe-area-inset-bottom,0px));-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+a{color:var(--accent)}
+button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.wrap{max-width:680px;margin:0 auto;min-width:0}
+.hdr{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:12px 8px;border-bottom:1px solid var(--line-soft);display:grid;gap:6px}
+.hdr .top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;min-width:0}
+.hdr h1{font-family:var(--font-display);font-size:24px;line-height:1.15;margin:0;letter-spacing:.02em}
+.hdr h1 a{color:inherit;text-decoration:none}
+.hdr .sub{font-size:12px;color:var(--muted);letter-spacing:.06em}
+.hdr .done{font-size:13px;color:var(--muted);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.hdr .done b{font-family:var(--font-display);font-size:20px;color:var(--ink)}
+.bar{height:5px;border-radius:999px;background:var(--line-soft);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:999px;transition:width .25s ease}
+.strip{display:flex;gap:6px;overflow-x:auto;padding-block:8px 2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.strip::-webkit-scrollbar{display:none}
+.strip a{flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;font-size:13px;line-height:1;padding:7px 10px;border-radius:999px;border:1px solid var(--line);background:var(--paper);color:var(--muted);text-decoration:none;white-space:nowrap}
+.strip a.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.strip a.ok:not(.on){color:var(--ok);border-color:var(--ok)}
+main{padding-block:16px;display:grid;gap:14px;min-width:0}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;min-width:0}
+.sheet{background-color:var(--paper);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:22px 22px;background-position:-1px -1px}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.between{justify-content:space-between}
+.muted{color:var(--muted)}
+.small{font-size:13px;line-height:1.6}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:42px;padding:8px 16px;border-radius:999px;border:1px solid var(--line);background:var(--paper);font-weight:500;text-decoration:none;color:var(--ink)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.mini{min-height:34px;padding:5px 12px;font-size:14px}
+.btn[disabled]{opacity:.45;cursor:default}
+.tag{display:inline-flex;align-items:center;font-size:12px;font-weight:700;letter-spacing:.08em;padding:3px 8px;border-radius:6px;background:var(--accent-soft);color:var(--accent)}
+.tag.hl{background:var(--hl-soft);color:var(--hl)}
+.tag.bad{background:var(--bad-soft);color:var(--bad)}
+.tag.ok{background:var(--ok-soft);color:var(--ok)}
+/* rich text */
+.fr{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;line-height:1.2;margin:0 .15em;font-size:.95em}
+.fr>span{padding:0 .15em}
+.fr>span+span{border-top:1.5px solid currentColor}
+b,strong{font-weight:700}
+/* home */
+.hero h2{font-family:var(--font-display);font-size:26px;line-height:1.25;margin:0 0 6px;text-wrap:balance}
+.hero p{margin:0 0 12px}
+.toc{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.toc a{display:grid;grid-template-columns:44px 1fr auto;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--paper);text-decoration:none;color:var(--ink);min-width:0}
+.toc .n{font-family:var(--font-display);font-size:18px;color:var(--accent);text-align:center;line-height:1}
+.toc .t{min-width:0}
+.toc .t small{display:block;color:var(--muted);font-size:13px;margin-top:2px}
+.toc .st{font-size:13px;font-weight:700;white-space:nowrap}
+.toc .st.ok{color:var(--ok)}
+.toc .st.go{color:var(--hl)}
+/* section */
+.sec{display:grid;gap:14px;min-width:0}
+.sec-h .eyebrow{font-size:12px;letter-spacing:.1em;color:var(--muted)}
+.sec-h h2{font-family:var(--font-display);font-size:24px;line-height:1.3;margin:2px 0 4px;text-wrap:balance}
+.lp{margin:0;font-size:17px;line-height:1.85;text-wrap:pretty;word-break:break-word}
+.key{border:1.5px solid var(--accent);border-radius:12px;background:var(--accent-soft);padding:12px 14px;min-width:0}
+.key .kt{font-size:12px;font-weight:700;letter-spacing:.1em;color:var(--accent);margin-bottom:4px}
+.key ul{margin:0;padding-left:1.1em;display:grid;gap:4px}
+.key li{font-size:17px;line-height:1.75;word-break:break-word}
+.fig{margin:0;display:grid;gap:4px;justify-items:center}
+.fig figcaption{font-size:13px;color:var(--muted);text-align:center}
+.dgw{width:100%;max-width:360px;overflow-x:auto}
+.dg{display:block;width:100%;height:auto;max-width:100%;color:var(--ink)}
+.dg .g{stroke:var(--line);stroke-width:1;fill:none}
+.dg .ax{stroke:var(--muted);stroke-width:1.2;fill:none}
+.dg .s-solid{stroke:var(--ink);stroke-width:1.7;fill:none;stroke-linecap:round}
+.dg .s-dashed{stroke:var(--muted);stroke-width:1.3;stroke-dasharray:5 4;fill:none}
+.dg .s-accent{stroke:var(--accent);stroke-width:2.8;fill:none;stroke-linecap:round}
+.dg .s-faint{stroke:var(--line);stroke-width:1.3;fill:none}
+.dg .f-accent{fill:var(--accent);fill-opacity:.18;stroke:none}
+.dg .f-warn{fill:var(--hl);fill-opacity:.24;stroke:none}
+.dg .f-ok{fill:var(--ok);fill-opacity:.18;stroke:none}
+.dg .mk{stroke:var(--ink);stroke-width:1.3;fill:none}
+.dg .pt{fill:var(--ink)}
+.dg .lb{fill:var(--ink);font-size:13px;font-family:var(--font-body);font-weight:500}
+.dg .len{fill:var(--accent);font-size:12px;font-weight:700;font-family:var(--font-body);paint-order:stroke;stroke:var(--paper);stroke-width:3px;stroke-linejoin:round}
+.dg .tk{fill:var(--muted);font-size:9px;font-family:var(--font-body)}
+.ex{display:grid;gap:8px}
+.ex .stem,.chk .stem{font-size:17px;line-height:1.8;word-break:break-word;margin:0;text-wrap:pretty}
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:6px;counter-reset:st}
+.steps li{position:relative;padding:8px 10px 8px 40px;border-radius:10px;background:var(--bg);font-size:16px;line-height:1.75;word-break:break-word;counter-increment:st}
+.steps li::before{content:counter(st);position:absolute;left:10px;top:8px;width:22px;height:22px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-size:12px;font-weight:700;display:grid;place-items:center;line-height:1}
+.final{padding:10px 12px;border-radius:10px;border:1.5px solid var(--ok);background:var(--ok-soft);font-weight:700;color:var(--ok)}
+.trap{display:grid;gap:6px;padding:12px 14px;border-radius:12px;border:1.5px dashed var(--bad);background:var(--paper)}
+.trap .w{color:var(--bad);word-break:break-word}
+.trap .w b,.trap .r b{font-family:var(--font-display);margin-right:4px}
+.trap .r{color:var(--ok);word-break:break-word}
+.trap .why{font-size:15px;color:var(--muted);word-break:break-word}
+details.why{border:1px solid var(--line);border-radius:12px;background:var(--paper);padding:0 14px}
+details.why summary{cursor:pointer;padding:12px 0;font-weight:700;color:var(--accent);list-style:none}
+details.why summary::-webkit-details-marker{display:none}
+details.why summary::before{content:"＋ "}
+details.why[open] summary::before{content:"－ "}
+details.why .body{display:grid;gap:8px;padding-bottom:14px}
+details.why p{margin:0;line-height:1.8}
+.opts{display:grid;gap:8px;margin-top:4px}
+.opt{display:flex;align-items:flex-start;gap:10px;width:100%;text-align:left;padding:11px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--paper);font-size:16px;line-height:1.6;min-height:48px}
+.opt .k{flex:0 0 auto;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
+.opt .v{min-width:0;word-break:break-word}
+.opt:not([disabled]):hover{border-color:var(--accent)}
+.opt.ok{border-color:var(--ok);background:var(--ok-soft)}
+.opt.ok .k{color:var(--ok)}
+.opt.bad{border-color:var(--bad);background:var(--bad-soft)}
+.opt.bad .k{color:var(--bad)}
+.opt[disabled]{cursor:default}
+.fb{padding:10px 12px;border-radius:10px;font-size:15px;line-height:1.75;word-break:break-word}
+.fb.ok{background:var(--ok-soft);color:var(--ok)}
+.fb.bad{background:var(--bad-soft);color:var(--bad)}
+.fb.hint{background:var(--hl-soft);color:var(--ink)}
+.fb.hint b{color:var(--hl)}
+.sol{display:grid;gap:4px;padding:10px 12px;border-radius:10px;background:var(--bg)}
+.sol p{margin:0;line-height:1.8;word-break:break-word}
+.chk{display:grid;gap:10px}
+.pn{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:6px}
+/* demos */
+.demo{display:grid;gap:10px}
+.demo .ctl{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.demo input[type=range]{flex:1;min-width:160px;accent-color:var(--accent);height:32px}
+.demo .seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;flex-wrap:wrap}
+.demo .seg button{padding:7px 12px;font-size:14px;min-height:36px}
+.demo .seg button.on{background:var(--accent);color:var(--accent-ink)}
+.rt{display:grid;gap:6px}
+.rt .r{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:8px 10px;border-radius:10px;background:var(--bg);font-variant-numeric:tabular-nums;font-size:15px}
+.rt .r .eq{font-weight:700;white-space:nowrap}
+.rt .r.ok .eq{color:var(--ok)}
+.rt .r.bad .eq{color:var(--bad)}
+.rt .r .x{min-width:0;word-break:break-word}
+.demo svg{touch-action:none}
+.score{font-family:var(--font-display);font-size:44px;line-height:1;color:var(--accent)}
+.empty{padding:28px 16px;text-align:center;color:var(--muted)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+<div class="wrap">
+  <header class="hdr">
+    <div class="top">
+      <div><h1><a href="#">相似形・比例線段</a></h1><div class="sub">國三上・會考必考單元</div></div>
+      <div class="done"><b id="doneN">0</b> / <span id="doneT">10</span> 節完成</div>
+    </div>
+    <div class="bar" aria-hidden="true"><i id="doneBar" style="width:0%"></i></div>
+    <nav class="strip" id="strip" aria-label="節次"></nav>
+  </header>
+  <main id="view"></main>
+</div>
+<script type="application/json" id="lesson-data">__LESSON_DATA__</script>
+<script>
+(function () {
+'use strict';
+var DATA = { sections: [], exam: [] };
+try { DATA = JSON.parse(document.getElementById('lesson-data').textContent); } catch (e) { if (window.console) console.warn('lesson data', e); }
+var SECS = DATA.sections || [], EXAM = DATA.exam || [];
+var DAILY = 'https://daily.happygoody.net/';
+var KEY = 'similar-lesson-v1';
+var ST = (function () { try { var s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s === 'object') return s; } catch (e) {} return {}; })();
+ST.checks = ST.checks || {}; ST.best = ST.best == null ? null : ST.best;
+function save() { try { localStorage.setItem(KEY, JSON.stringify(ST)); } catch (e) {} }
+var MEM = { ex: {} };
+var view = document.getElementById('view');
+
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+// [[a/b]] -> stacked fraction, **x** -> bold, newline -> <br>
+function rich(s) {
+  var h = esc(s);
+  h = h.replace(/\[\[([^\[\]\/]+?)\/([^\[\]]+?)\]\]/g, function (m, a, b) { return '<span class="fr"><span>' + a.trim() + '</span><span>' + b.trim() + '</span></span>'; });
+  h = h.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+  return h.replace(/\n/g, '<br>');
+}
+function hashStr(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function perm(seed) { var r = mulberry32(hashStr(seed)), a = [0, 1, 2, 3]; for (var i = 3; i > 0; i--) { var j = Math.floor(r() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+function fmt(x) { var s = (Math.round(x * 100) / 100).toFixed(2); return s.replace(/\.?0+$/, ''); }
+
+/*@dg-start*/
+// Draws a diagram spec (points, segments, marks) as SVG. inline:true writes presentation attributes in
+// currentColor (for question-bank figures); otherwise it uses the page's classes and theme colors.
+function dgRender(d, opt) {
+  opt = opt || {};
+  var inline = !!opt.inline;
+  var w = +d.w || 240, h = +d.h || 180, P = {}, pts = d.points || [];
+  pts.forEach(function (p) { P[p.id] = p; });
+  var cx = 0, cy = 0;
+  pts.forEach(function (p) { cx += p.x; cy += p.y; });
+  cx /= pts.length || 1; cy /= pts.length || 1;
+  var out = [];
+  var f = function (n) { return Math.round(n * 10) / 10; };
+  var X = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+  var have = function (ids) { for (var i = 0; i < ids.length; i++) if (!P[ids[i]]) return false; return true; };
+  var INL = {
+    g: 'stroke="currentColor" stroke-opacity=".15" stroke-width="1" fill="none"',
+    ax: 'stroke="currentColor" stroke-opacity=".75" stroke-width="1.2" fill="none"',
+    's-solid': 'stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"',
+    's-dashed': 'stroke="currentColor" stroke-opacity=".7" stroke-width="1.3" stroke-dasharray="5 4" fill="none"',
+    's-accent': 'stroke="currentColor" stroke-width="2.6" fill="none" stroke-linecap="round"',
+    's-faint': 'stroke="currentColor" stroke-opacity=".35" stroke-width="1.2" fill="none"',
+    'f-accent': 'fill="currentColor" fill-opacity=".12" stroke="none"',
+    'f-warn': 'fill="currentColor" fill-opacity=".22" stroke="none"',
+    'f-ok': 'fill="currentColor" fill-opacity=".07" stroke="none"',
+    mk: 'stroke="currentColor" stroke-width="1.3" fill="none"',
+    pt: 'fill="currentColor"',
+    lb: 'fill="currentColor" font-size="13" font-family="sans-serif"',
+    len: 'fill="currentColor" font-size="12" font-weight="700" font-family="sans-serif"',
+    tk: 'fill="currentColor" fill-opacity=".7" font-size="9" font-family="sans-serif"'
+  };
+  var A = function (k) { return inline ? ' ' + INL[k] : ' class="' + k + '"'; };
+  var line = function (x1, y1, x2, y2, k) { out.push('<line x1="' + f(x1) + '" y1="' + f(y1) + '" x2="' + f(x2) + '" y2="' + f(y2) + '"' + A(k) + '/>'); };
+  var unit = function (a, b) { var dx = P[b].x - P[a].x, dy = P[b].y - P[a].y, l = Math.hypot(dx, dy) || 1; return [dx / l, dy / l, l]; };
+  var g = d.grid;
+  if (g && g.step > 0) {
+    var cols = g.cols | 0, rows = g.rows | 0, x0 = +g.x0 || 0, y0 = +g.y0 || 0;
+    for (var i = 0; i <= cols; i++) line(x0 + i * g.step, y0, x0 + i * g.step, y0 + rows * g.step, 'g');
+    for (var j = 0; j <= rows; j++) line(x0, y0 + j * g.step, x0 + cols * g.step, y0 + j * g.step, 'g');
+  }
+  var ax = d.axes;
+  if (ax && ax.unit > 0) {
+    var ox = +ax.ox, oy = +ax.oy, u = +ax.unit;
+    line(8, oy, w - 8, oy, 'ax'); line(ox, h - 8, ox, 8, 'ax');
+    out.push('<path d="M' + f(w - 8) + ' ' + f(oy) + 'l-7 -3.5v7z"' + (inline ? ' fill="currentColor" fill-opacity=".75"' : ' class="pt"') + '/>');
+    out.push('<path d="M' + f(ox) + ' 8l-3.5 7h7z"' + (inline ? ' fill="currentColor" fill-opacity=".75"' : ' class="pt"') + '/>');
+    for (var k = Math.ceil((8 - ox) / u); ox + k * u < w - 14; k++) { if (!k) continue; line(ox + k * u, oy - 3, ox + k * u, oy + 3, 'ax'); if (u >= 16) out.push('<text x="' + f(ox + k * u) + '" y="' + f(oy + 13) + '" text-anchor="middle"' + A('tk') + '>' + k + '</text>'); }
+    for (var m = Math.ceil((oy - (h - 8)) / u); oy - m * u > 14; m++) { if (!m) continue; line(ox - 3, oy - m * u, ox + 3, oy - m * u, 'ax'); if (u >= 16) out.push('<text x="' + f(ox - 6) + '" y="' + f(oy - m * u + 3) + '" text-anchor="end"' + A('tk') + '>' + m + '</text>'); }
+    out.push('<text x="' + f(w - 10) + '" y="' + f(oy - 7) + '" text-anchor="end"' + A('lb') + '>x</text>');
+    out.push('<text x="' + f(ox + 8) + '" y="16"' + A('lb') + '>y</text>');
+    out.push('<text x="' + f(ox - 5) + '" y="' + f(oy + 13) + '" text-anchor="end"' + A('lb') + '>O</text>');
+  }
+  (d.fills || []).forEach(function (fl) {
+    if (!fl.pts || fl.pts.length < 3 || !have(fl.pts)) return;
+    var tone = { accent: 'f-accent', warn: 'f-warn', ok: 'f-ok' }[fl.tone] || 'f-accent';
+    out.push('<polygon points="' + fl.pts.map(function (id) { return f(P[id].x) + ',' + f(P[id].y); }).join(' ') + '"' + A(tone) + '/>');
+  });
+  (d.segments || []).forEach(function (s) {
+    if (!have([s.a, s.b])) return;
+    var k = { dashed: 's-dashed', accent: 's-accent', faint: 's-faint' }[s.style] || 's-solid';
+    line(P[s.a].x, P[s.a].y, P[s.b].x, P[s.b].y, k);
+  });
+  // parallel arrows: segments declared parallel (directly or through a chain, e.g. L1 ∥ L2 and L2 ∥ L3) share one
+  // family; family i gets i+1 chevrons, drawn once per segment, all pointing the same way
+  var segKey = function (a, b) { return a < b ? a + '|' + b : b + '|' + a; };
+  var fam = {}, famOf = function (k) { while (fam[k] !== k) k = fam[k]; return k; };
+  var segEnds = {}, order = [];
+  (d.parallel || []).forEach(function (q) {
+    if (!q || q.length !== 4 || !have(q)) return;
+    var k1 = segKey(q[0], q[1]), k2 = segKey(q[2], q[3]);
+    [[k1, q[0], q[1]], [k2, q[2], q[3]]].forEach(function (x) { if (!(x[0] in fam)) { fam[x[0]] = x[0]; segEnds[x[0]] = [x[1], x[2]]; order.push(x[0]); } });
+    var r1 = famOf(k1), r2 = famOf(k2); if (r1 !== r2) fam[r2] = r1;
+  });
+  var famIdx = {}, famDir = {}, nf = 0;
+  order.forEach(function (k) {
+    var r = famOf(k), e = segEnds[k], uu = unit(e[0], e[1]);
+    if (!(r in famIdx)) { famIdx[r] = nf++; famDir[r] = uu; }
+    var ref = famDir[r]; if (uu[0] * ref[0] + uu[1] * ref[1] < 0) uu = [-uu[0], -uu[1], uu[2]];
+    var gi = famIdx[r], a = P[e[0]], b = P[e[1]], mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2, nx = -uu[1], ny = uu[0];
+    for (var c = 0; c <= gi; c++) {
+      var off = (c - gi / 2) * 6, tx = mx + uu[0] * (off + 4), ty = my + uu[1] * (off + 4);
+      out.push('<path d="M' + f(tx - uu[0] * 5 + nx * 4) + ' ' + f(ty - uu[1] * 5 + ny * 4) + 'L' + f(tx) + ' ' + f(ty) + 'L' + f(tx - uu[0] * 5 - nx * 4) + ' ' + f(ty - uu[1] * 5 - ny * 4) + '"' + A('mk') + '/>');
+    }
+  });
+  (d.ticks || []).forEach(function (t) {
+    if (!have([t.a, t.b])) return;
+    var a = P[t.a], b = P[t.b], uu = unit(t.a, t.b), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2, nx = -uu[1], ny = uu[0], n = Math.max(1, Math.min(3, t.n | 0 || 1));
+    for (var c = 0; c < n; c++) { var off = (c - (n - 1) / 2) * 3.5, px = mx + uu[0] * off, py = my + uu[1] * off; line(px - nx * 4.5, py - ny * 4.5, px + nx * 4.5, py + ny * 4.5, 'mk'); }
+  });
+  (d.arcs || []).forEach(function (r) {
+    if (!have([r.at, r.a, r.b])) return;
+    var V = P[r.at], t1 = Math.atan2(P[r.a].y - V.y, P[r.a].x - V.x), t2 = Math.atan2(P[r.b].y - V.y, P[r.b].x - V.x);
+    var dt = t2 - t1; while (dt <= -Math.PI) dt += 2 * Math.PI; while (dt > Math.PI) dt -= 2 * Math.PI;
+    var n = Math.max(1, Math.min(3, r.n | 0 || 1));
+    for (var c = 0; c < n; c++) {
+      var rad = 13 + c * 4;
+      out.push('<path d="M' + f(V.x + rad * Math.cos(t1)) + ' ' + f(V.y + rad * Math.sin(t1)) + 'A' + rad + ' ' + rad + ' 0 0 ' + (dt > 0 ? 1 : 0) + ' ' + f(V.x + rad * Math.cos(t1 + dt)) + ' ' + f(V.y + rad * Math.sin(t1 + dt)) + '"' + A('mk') + '/>');
+    }
+  });
+  (d.rightAngles || []).forEach(function (r) {
+    if (!have([r.at, r.a, r.b])) return;
+    var V = P[r.at], u1 = unit(r.at, r.a), u2 = unit(r.at, r.b), s = 9;
+    out.push('<path d="M' + f(V.x + u1[0] * s) + ' ' + f(V.y + u1[1] * s) + 'L' + f(V.x + u1[0] * s + u2[0] * s) + ' ' + f(V.y + u1[1] * s + u2[1] * s) + 'L' + f(V.x + u2[0] * s) + ' ' + f(V.y + u2[1] * s) + '"' + A('mk') + '/>');
+  });
+  (d.lengths || []).forEach(function (L) {
+    if (!have([L.a, L.b])) return;
+    var a = P[L.a], b = P[L.b], uu = unit(L.a, L.b), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    var nl = [uu[1], -uu[0]], side = L.side === 'l' ? 1 : L.side === 'r' ? -1 : ((mx - cx) * nl[0] + (my - cy) * nl[1] >= 0 ? 1 : -1);
+    var tx = mx + nl[0] * 11 * side, ty = my + nl[1] * 11 * side + 4;
+    out.push('<text x="' + f(tx) + '" y="' + f(ty) + '" text-anchor="middle"' + A('len') + '>' + X(L.text) + '</text>');
+  });
+  var OFF = { n: [0, -9, 'middle'], s: [0, 16, 'middle'], e: [8, 5, 'start'], w: [-8, 5, 'end'], ne: [6, -6, 'start'], nw: [-6, -6, 'end'], se: [6, 14, 'start'], sw: [-6, 14, 'end'] };
+  // a point no segment, mark or fill refers to is a text annotation (an angle size, a name): no dot, text centred on it
+  var used = {};
+  var use = function (ids) { (ids || []).forEach(function (id) { used[id] = true; }); };
+  (d.segments || []).forEach(function (s) { use([s.a, s.b]); });
+  (d.fills || []).forEach(function (x) { use(x.pts); });
+  (d.rightAngles || []).concat(d.arcs || []).forEach(function (r) { use([r.at]); });
+  (d.ticks || []).concat(d.lengths || []).forEach(function (t) { use([t.a, t.b]); });
+  (d.parallel || []).concat(d.on || []).forEach(function (q) { use(q); });
+  pts.forEach(function (p) {
+    var label = p.label == null ? p.id : p.label;
+    if (!used[p.id]) { if (label) out.push('<text x="' + f(p.x + (p.pos && OFF[p.pos] ? OFF[p.pos][0] : 0)) + '" y="' + f(p.y + (p.pos && OFF[p.pos] ? OFF[p.pos][1] : 4)) + '" text-anchor="' + (p.pos && OFF[p.pos] ? OFF[p.pos][2] : 'middle') + '"' + A('lb') + '>' + X(label) + '</text>'); return; }
+    if (!label) return;                                     // an unlabeled point is only a corner or helper: no dot
+    out.push('<circle cx="' + f(p.x) + '" cy="' + f(p.y) + '" r="2.3"' + A('pt') + '/>');
+    var pos = p.pos && OFF[p.pos] ? p.pos : null;
+    if (!pos) {
+      var a = Math.atan2(p.y - cy, p.x - cx), dirs = ['e', 'se', 's', 'sw', 'w', 'nw', 'n', 'ne'];
+      pos = dirs[((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8];
+    }
+    var o = OFF[pos];
+    out.push('<text x="' + f(p.x + o[0]) + '" y="' + f(p.y + o[1]) + '" text-anchor="' + o[2] + '"' + A('lb') + '>' + X(label) + '</text>');
+  });
+  return '<svg viewBox="0 0 ' + w + ' ' + h + '" xmlns="http://www.w3.org/2000/svg"' + (inline ? '' : ' class="dg"') + ' role="img" aria-label="' + X(opt.label || '幾何圖') + '">' + out.join('') + '</svg>';
+}
+/*@dg-end*/
+
+function fig(d, cap) { if (!d || !d.points || !d.points.length) return ''; return '<figure class="fig"><div class="dgw">' + dgRender(d) + '</div>' + (cap ? '<figcaption>' + rich(cap) + '</figcaption>' : '') + '</figure>'; }
+
+// ---------- progress ----------
+function checksOf(sec) { return (sec.blocks || []).filter(function (b) { return b.type === 'check'; }); }
+function secState(sec) {
+  var cs = checksOf(sec), done = cs.filter(function (b) { return ST.checks[b.id] && ST.checks[b.id].done; }).length;
+  return { done: done, total: cs.length, complete: cs.length > 0 && done === cs.length, started: done > 0 };
+}
+function examDone() { return ST.best != null; }
+function totals() { var n = SECS.filter(function (s) { return secState(s).complete; }).length + (examDone() ? 1 : 0); return { n: n, t: SECS.length + 1 }; }
+function secLabel(i) { return i === 0 ? '暖身' : '第 ' + i + ' 節'; }
+function shortLabel(i) { return i === 0 ? '暖身' : String(i); }
+
+function renderChrome(cur) {
+  var t = totals();
+  document.getElementById('doneN').textContent = t.n;
+  document.getElementById('doneT').textContent = t.t;
+  document.getElementById('doneBar').style.width = Math.round(t.n / t.t * 100) + '%';
+  var html = '<a href="#"' + (cur === '' ? ' class="on"' : '') + '>目錄</a>';
+  SECS.forEach(function (s, i) { var st = secState(s); html += '<a href="#' + s.id + '" class="' + (cur === s.id ? 'on ' : '') + (st.complete ? 'ok' : '') + '">' + (st.complete ? '✓ ' : '') + shortLabel(i) + '</a>'; });
+  html += '<a href="#exam" class="' + (cur === 'exam' ? 'on ' : '') + (examDone() ? 'ok' : '') + '">' + (examDone() ? '✓ ' : '') + '會考實戰</a>';
+  var strip = document.getElementById('strip');
+  strip.innerHTML = html;
+  var on = strip.querySelector('.on'); if (on && on.scrollIntoView) { try { on.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (e) {} }
+}
+
+// ---------- home ----------
+function renderHome() {
+  var next = SECS.filter(function (s) { return !secState(s).complete; })[0];
+  var started = SECS.some(function (s) { return secState(s).started; });
+  var html = '<section class="card sheet hero"><h2>看懂圖，就會算比例</h2>' +
+    '<p>這份教學從比例式開始，一路講到會考常考的相似三角形。每一節先看圖和例題，再做「你試試」。三題都做對，這節就打勾。</p>' +
+    '<p class="small muted">例題可以一步一步按「下一步」看。題目做錯會告訴你可能哪裡想錯，也可以先看提示。</p>' +
+    '<div class="row">' + (next ? '<a class="btn primary" href="#' + next.id + '">' + (started ? '繼續：' : '從這裡開始：') + esc(next.title) + '</a>' : '<a class="btn primary" href="#exam">每節都完成了，去會考實戰</a>') +
+    '<a class="btn" href="#exam">直接挑戰會考實戰</a></div></section>';
+  html += '<ol class="toc">';
+  SECS.forEach(function (s, i) {
+    var st = secState(s);
+    html += '<li><a href="#' + s.id + '"><span class="n">' + shortLabel(i) + '</span><span class="t">' + esc(s.title) + '<small>你試試 ' + st.done + ' / ' + st.total + '</small></span><span class="st ' + (st.complete ? 'ok' : st.started ? 'go' : '') + '">' + (st.complete ? '✓ 完成' : st.started ? '進行中' : '') + '</span></a></li>';
+  });
+  html += '<li><a href="#exam"><span class="n">戰</span><span class="t">會考實戰<small>' + EXAM.length + ' 題綜合題' + (ST.best != null ? '，最佳 ' + ST.best.ok + ' / ' + ST.best.n : '') + '</small></span><span class="st ' + (examDone() ? 'ok' : '') + '">' + (examDone() ? '✓ 做過' : '') + '</span></a></li></ol>';
+  html += '<p class="small muted">學完以後，會考每日練會照遺忘曲線，隔天、三天、一週後再出這個單元的題目。<a href="' + DAILY + '" target="_blank" rel="noopener">打開會考每日練</a></p>';
+  view.innerHTML = html;
+}
+
+// ---------- section ----------
+function renderSection(idx) {
+  var s = SECS[idx], st = secState(s);
+  var html = '<article class="sec"><div class="sec-h"><div class="eyebrow">' + secLabel(idx) + '</div><h2>' + esc(s.title) + '</h2>' +
+    '<div class="small muted">你試試：做對 <b id="secDone">' + st.done + '</b> / ' + st.total + '</div></div>';
+  (s.blocks || []).forEach(function (b) { html += block(b); });
+  var prev = idx > 0 ? '<a class="btn" href="#' + SECS[idx - 1].id + '">← ' + esc(shortTitle(idx - 1)) + '</a>' : '<a class="btn" href="#">← 目錄</a>';
+  var nxt = idx < SECS.length - 1 ? '<a class="btn primary" href="#' + SECS[idx + 1].id + '">' + esc(shortTitle(idx + 1)) + ' →</a>' : '<a class="btn primary" href="#exam">會考實戰 →</a>';
+  html += '<nav class="pn">' + prev + nxt + '</nav></article>';
+  view.innerHTML = html;
+  mountDemos(view);
+}
+function shortTitle(i) { if (i === 0) return '暖身'; var t = SECS[i].title; var c = t.indexOf('：'); return secLabel(i) + (c > 0 && c < 10 ? ' ' + t.slice(0, c) : ''); }
+
+function block(b) {
+  switch (b.type) {
+    case 'p': return '<p class="lp">' + rich(b.text) + '</p>';
+    case 'key': return '<div class="key"><div class="kt">' + esc(b.title || '重點') + '</div><ul>' + b.lines.map(function (l) { return '<li>' + rich(l) + '</li>'; }).join('') + '</ul>' + (b.diagram ? fig(b.diagram) : '') + '</div>';
+    case 'fig': return fig(b.diagram, b.caption);
+    case 'demo': return '<div class="card demo" data-demo="' + esc(b.name) + '" data-mode="' + esc(b.mode || '') + '"></div>';
+    case 'example': return '<div class="card ex" id="ex-' + esc(b.id) + '">' + exampleInner(b) + '</div>';
+    case 'trap': return '<div class="trap"><span class="tag bad" style="justify-self:start">常見錯誤</span><div class="w"><b>✗</b>' + rich(b.wrong) + '</div><div class="r"><b>✓</b>' + rich(b.right) + '</div>' + (b.reason ? '<div class="why">' + rich(b.reason) + '</div>' : '') + '</div>';
+    case 'why': return '<details class="why"><summary>' + esc(b.title || '想知道為什麼？') + '</summary><div class="body">' + b.lines.map(function (l) { return '<p>' + rich(l) + '</p>'; }).join('') + (b.diagram ? fig(b.diagram) : '') + '</div></details>';
+    case 'check': return '<div class="card sheet chk" id="chk-' + esc(b.id) + '">' + checkInner(b) + '</div>';
+  }
+  return '';
+}
+
+function exampleInner(b) {
+  var n = MEM.ex[b.id] || 0, all = b.steps.length;
+  var html = '<div class="row between"><span class="tag">例題</span><span class="small muted">' + Math.min(n, all) + ' / ' + all + ' 步</span></div>' +
+    '<p class="stem">' + rich(b.stem) + '</p>' + (b.diagram ? fig(b.diagram) : '');
+  if (n > 0) html += '<ol class="steps">' + b.steps.slice(0, n).map(function (s) { return '<li>' + rich(s) + '</li>'; }).join('') + '</ol>';
+  if (n >= all && b.final) html += '<div class="final">答：' + rich(b.final) + '</div>';
+  html += '<div class="row">' + (n < all ? '<button class="btn primary mini" data-act="step" data-id="' + esc(b.id) + '">' + (n === 0 ? '先自己想，再看第 1 步' : '下一步') + '</button>' + (n < all - 1 ? '<button class="btn mini" data-act="allsteps" data-id="' + esc(b.id) + '">全部顯示</button>' : '') : '<button class="btn mini" data-act="resetsteps" data-id="' + esc(b.id) + '">收起來，自己再做一次</button>') + '</div>';
+  return html;
+}
+
+function checkState(id) { return ST.checks[id] || (ST.checks[id] = { v: 0, picks: [], hint: 0, sol: false, done: false, tries: 0 }); }
+function findBlock(id) { for (var i = 0; i < SECS.length; i++) for (var j = 0; j < SECS[i].blocks.length; j++) if (SECS[i].blocks[j].id === id) return SECS[i].blocks[j]; return null; }
+function checkInner(b) {
+  var s = checkState(b.id), q = b.variants[s.v % b.variants.length];
+  var order = perm(q.id + '|' + s.tries), solved = s.picks.indexOf(q.answer) >= 0, last = s.picks[s.picks.length - 1];
+  var html = '<div class="row between"><span class="tag hl">你試試</span><span class="small muted">' + (s.done ? '✓ 做對過　' : '') + (b.variants.length > 1 ? '第 ' + (s.v % b.variants.length + 1) + ' / ' + b.variants.length + ' 版' : '') + '</span></div>';
+  if (b.skill) html += '<div class="small muted">練習：' + rich(b.skill) + '</div>';
+  html += '<p class="stem">' + rich(q.stem) + '</p>' + (q.diagram ? fig(q.diagram) : '');
+  html += '<div class="opts" role="group" aria-label="選項">';
+  order.forEach(function (oi, k) {
+    var picked = s.picks.indexOf(oi) >= 0, cls = picked ? (oi === q.answer ? ' ok' : ' bad') : '';
+    html += '<button class="opt' + cls + '" data-act="pick" data-id="' + esc(b.id) + '" data-i="' + oi + '"' + (solved || picked ? ' disabled' : '') + '><span class="k">' + 'ABCD'[k] + '</span><span class="v">' + rich(q.options[oi]) + '</span></button>';
+  });
+  html += '</div>';
+  if (last != null) {
+    if (last === q.answer) html += '<div class="fb ok"><b>答對了！</b>' + rich(q.why[last]) + '</div>';
+    else html += '<div class="fb bad"><b>再想想。</b>' + rich(q.why[last]) + '</div>';
+  }
+  for (var h = 0; h < Math.min(s.hint, q.hints.length); h++) html += '<div class="fb hint"><b>提示 ' + (h + 1) + '：</b>' + rich(q.hints[h]) + '</div>';
+  if (s.sol || solved) html += '<details class="why"' + (s.sol ? ' open' : '') + '><summary>完整解法</summary><div class="body">' + q.solution.map(function (l) { return '<p>' + rich(l) + '</p>'; }).join('') + '</div></details>';
+  html += '<div class="row">';
+  if (!solved && s.hint < q.hints.length) html += '<button class="btn mini" data-act="hint" data-id="' + esc(b.id) + '">看提示 ' + (s.hint + 1) + '</button>';
+  if (!solved && !s.sol && s.hint >= q.hints.length) html += '<button class="btn mini" data-act="sol" data-id="' + esc(b.id) + '">看解法</button>';
+  if (b.variants.length > 1 && (solved || s.sol)) html += '<button class="btn mini primary" data-act="nextv" data-id="' + esc(b.id) + '">換一題（同觀念、換數字）</button>';
+  html += '</div>';
+  return html;
+}
+function refresh(id, kind) {
+  var el = document.getElementById((kind === 'ex' ? 'ex-' : 'chk-') + id); if (!el) return;
+  var b = findBlock(id); if (!b) return;
+  el.innerHTML = kind === 'ex' ? exampleInner(b) : checkInner(b);
+}
+function onPick(id, i) {
+  var b = findBlock(id); if (!b) return;
+  var s = checkState(id), q = b.variants[s.v % b.variants.length];
+  if (s.picks.indexOf(q.answer) >= 0 || s.picks.indexOf(i) >= 0) return;
+  s.picks.push(i);
+  if (i === q.answer) s.done = true;
+  save(); refresh(id, 'chk'); updateSecHeader();
+}
+function updateSecHeader() {
+  var cur = location.hash.replace('#', ''), idx = SECS.map(function (s) { return s.id; }).indexOf(cur);
+  if (idx >= 0) { var el = document.getElementById('secDone'); if (el) el.textContent = secState(SECS[idx]).done; }
+  renderChrome(cur);
+}
+
+// ---------- exam ----------
+function examProblem(i) { var p = EXAM[ST.exam.order[i]]; return { p: p, q: p.variants[ST.exam.round % p.variants.length] }; }
+function startExam() {
+  var round = ST.exam && ST.exam.round != null ? ST.exam.round + (ST.exam.done ? 1 : 0) : 0;
+  ST.exam = { round: round, idx: 0, ans: {}, done: false, order: EXAM.map(function (_, i) { return i; }) };
+  save(); renderExam(); window.scrollTo(0, 0);
+}
+function renderExam() {
+  var E = ST.exam, html = '';
+  if (!EXAM.length) { view.innerHTML = '<div class="card empty">題目還沒準備好。</div>'; return; }
+  if (!E) {
+    html = '<section class="card sheet hero"><h2>會考實戰</h2><p>' + EXAM.length + ' 題綜合題，每題只能選一次，選完會馬上告訴你對錯和解法。做完看分數，錯的題目會告訴你回哪一節複習。</p>' +
+      '<div class="row"><button class="btn primary" data-act="exam-start">開始</button><a class="btn" href="#">回目錄</a></div></section>';
+    view.innerHTML = html; return;
+  }
+  if (E.done) {
+    var ok = 0, wrongBySec = {};
+    E.order.forEach(function (pi, i) { var x = examProblem(i); if (E.ans[i] === x.q.answer) ok++; else (wrongBySec[x.p.section] = wrongBySec[x.p.section] || []).push(x.p.title || ''); });
+    html = '<section class="card sheet hero"><div class="small muted">這一回的成績</div><div class="score">' + ok + ' / ' + E.order.length + '</div>' +
+      '<p>' + (ok === E.order.length ? '全對！這個單元你已經會了，接下來交給每日練幫你記住。' : ok >= E.order.length * 0.7 ? '大部分都會了。下面幾節再看一次，就更穩了。' : '還有幾個地方不熟，先回去看下面幾節，再挑戰一次。') + '</p>';
+    var keys = Object.keys(wrongBySec);
+    if (keys.length) {
+      html += '<div style="display:grid;gap:6px;margin-bottom:12px">';
+      SECS.forEach(function (s, i) { if (wrongBySec[s.id]) html += '<a class="btn" style="justify-content:flex-start" href="#' + s.id + '">回' + secLabel(i) + '：' + esc(s.title) + '</a>'; });
+      html += '</div>';
+    }
+    html += '<div class="row"><button class="btn primary" data-act="exam-start">換數字再挑戰一次</button><a class="btn" href="' + DAILY + '" target="_blank" rel="noopener">去會考每日練</a></div></section>';
+    view.innerHTML = html; return;
+  }
+  var i = E.idx, x = examProblem(i), q = x.q, picked = E.ans[i], order = perm(q.id + '|exam|' + E.round);
+  html += '<div class="row between small muted"><span>會考實戰 第 ' + (i + 1) + ' / ' + E.order.length + ' 題</span><span>' + esc(x.p.title || '') + '</span></div>';
+  html += '<div class="bar" aria-hidden="true"><i style="width:' + Math.round(i / E.order.length * 100) + '%"></i></div>';
+  html += '<div class="card sheet chk"><p class="stem">' + rich(q.stem) + '</p>' + (q.diagram ? fig(q.diagram) : '') + '<div class="opts">';
+  order.forEach(function (oi, k) {
+    var cls = picked == null ? '' : oi === q.answer ? ' ok' : oi === picked ? ' bad' : '';
+    html += '<button class="opt' + cls + '" data-act="exam-pick" data-i="' + oi + '"' + (picked != null ? ' disabled' : '') + '><span class="k">' + 'ABCD'[k] + '</span><span class="v">' + rich(q.options[oi]) + '</span></button>';
+  });
+  html += '</div>';
+  if (picked != null) {
+    html += picked === q.answer ? '<div class="fb ok"><b>答對了！</b>' + rich(q.why[picked]) + '</div>' : '<div class="fb bad"><b>這題錯了。</b>' + rich(q.why[picked]) + '</div>';
+    html += '<details class="why" open><summary>完整解法</summary><div class="body">' + q.solution.map(function (l) { return '<p>' + rich(l) + '</p>'; }).join('') + '</div></details>';
+    var si = SECS.map(function (s) { return s.id; }).indexOf(x.p.section);
+    if (picked !== q.answer && si >= 0) html += '<div class="small muted">這題用到' + secLabel(si) + '「' + esc(SECS[si].title) + '」。</div>';
+    html += '<div class="row"><button class="btn primary" data-act="exam-next">' + (i + 1 < E.order.length ? '下一題' : '看成績') + '</button></div>';
+  } else if (q.hints && q.hints.length) {
+    html += '<div class="small muted">會考沒有提示，這裡也先不給。想不出來可以先猜一個，看完解法再回去複習。</div>';
+  }
+  html += '</div>';
+  view.innerHTML = html;
+}
+
+// ---------- demos ----------
+function mountDemos(root) {
+  Array.prototype.forEach.call(root.querySelectorAll('[data-demo]'), function (el) {
+    var n = el.getAttribute('data-demo');
+    try { if (n === 'slide') demoSlide(el, el.getAttribute('data-mode') === 'AX'); else if (n === 'scale') demoScale(el); else if (n === 'mother') demoMother(el); } catch (e) { if (window.console) console.warn(e); el.innerHTML = '<div class="small muted">這個小工具載入失敗。</div>'; }
+  });
+}
+function svgPoint(svg, ev) { var p = svg.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY; var m = svg.getScreenCTM(); return m ? p.matrixTransform(m.inverse()) : { x: 0, y: 0 }; }
+
+// A 字型 / X 字型: △ABC with AB = 8, AC = 10, BC = 12; D slides on line AB, E follows so that DE ∥ BC.
+function demoSlide(el, xmode) {
+  var AB = 8, AC = 10, BC = 12;
+  var ax = 4.5, ay = Math.sqrt(AB * AB - ax * ax);                 // A in units with B at (0,0), C at (12,0)
+  var sc = xmode ? 11 : 16, w = 240, h = xmode ? 200 : 180;
+  var bx = (w - BC * sc) / 2, by = xmode ? 186 : 166;
+  var Bp = { x: bx, y: by }, Cp = { x: bx + BC * sc, y: by }, Ap = { x: bx + ax * sc, y: by - ay * sc };
+  var lo = xmode ? -14 : 1, hi = 15;                              // slider value = 2 × AD (signed)
+  var v = 6;
+  el.innerHTML = '<div class="row between"><span class="tag">動手看看</span><span class="small muted" data-r="kind"></span></div>' +
+    '<p class="small" style="margin:0">' + (xmode ? '拖動 D 點（或下面的拉桿）。把 D 拖過 A 點，A 字型就變成 X 字型。' : '拖動 D 點（或下面的拉桿），DE 會一直和 BC 平行。看看哪些比永遠相等。') + '</p>' +
+    '<div class="dgw" style="justify-self:center" data-r="svg"></div>' +
+    '<div class="ctl"><label class="small" for="sl-' + (xmode ? 'x' : 'a') + '">AD</label><input type="range" id="sl-' + (xmode ? 'x' : 'a') + '" min="' + lo + '" max="' + hi + '" step="1" value="' + v + '"><span class="small muted" data-r="ad"></span></div>' +
+    '<div class="rt" data-r="rt"></div>';
+  var box = el.querySelector('[data-r=svg]'), input = el.querySelector('input'), rt = el.querySelector('[data-r=rt]');
+  function draw() {
+    if (v === 0) v = 1;
+    var t = v / 2 / AB;                                            // signed AD / AB
+    var D = { x: Ap.x + t * (Bp.x - Ap.x), y: Ap.y + t * (Bp.y - Ap.y) }, E = { x: Ap.x + t * (Cp.x - Ap.x), y: Ap.y + t * (Cp.y - Ap.y) };
+    var X = t < 0;
+    var d = { w: w, h: h, points: [{ id: 'A', x: Ap.x, y: Ap.y, pos: X ? 'e' : 'n' }, { id: 'B', x: Bp.x, y: Bp.y, pos: 'sw' }, { id: 'C', x: Cp.x, y: Cp.y, pos: 'se' }, { id: 'D', x: D.x, y: D.y, pos: X ? 'ne' : 'w' }, { id: 'E', x: E.x, y: E.y, pos: X ? 'nw' : 'e' }],
+      segments: [{ a: 'B', b: 'C' }, { a: X ? 'D' : 'A', b: 'B' }, { a: X ? 'E' : 'A', b: 'C' }, { a: 'D', b: 'E', style: 'accent' }],
+      fills: [{ pts: ['A', 'D', 'E'], tone: 'accent' }], parallel: [['D', 'E', 'B', 'C']] };
+    box.innerHTML = dgRender(d, { label: 'DE 平行 BC 的三角形' });
+    var svg = box.querySelector('svg');
+    svg.insertAdjacentHTML('afterbegin', '<circle cx="' + D.x + '" cy="' + D.y + '" r="12" style="fill:var(--accent);fill-opacity:.22;stroke:var(--accent);stroke-width:1.5;cursor:grab"/>');
+    var ad = Math.abs(t) * AB, ae = Math.abs(t) * AC, de = Math.abs(t) * BC;
+    el.querySelector('[data-r=ad]').textContent = '＝ ' + fmt(ad);
+    el.querySelector('[data-r=kind]').textContent = X ? 'X 字型（沙漏型）' : 'A 字型';
+    var r = function (lab, a, b, cls) { return '<div class="r ' + (cls || '') + '"><span class="x">' + lab + '</span><span class="eq">' + fmt(a) + ' : ' + fmt(b) + ' → ' + fmt(a / b) + '</span></div>'; };
+    var html = '';
+    if (!X) {
+      html += '<div class="small muted">第一組「上 : 下」</div>' + r('AD : DB', ad, AB - ad, 'ok') + r('AE : EC', ae, AC - ae, 'ok');
+      html += '<div class="small muted">第二組「上 : 全」＝「小底 : 大底」</div>' + r('AD : AB', ad, AB, 'ok') + r('AE : AC', ae, AC, 'ok') + r('DE : BC', de, BC, 'ok');
+      html += '<div class="small muted">陷阱：上 : 下 不等於 小底 : 大底</div>' + r('AD : DB', ad, AB - ad, 'bad') + r('DE : BC', de, BC, 'bad');
+    } else {
+      html += '<div class="small muted">X 字型：以 A 為中心，對應的邊成比例</div>' + r('AD : AB', ad, AB, 'ok') + r('AE : AC', ae, AC, 'ok') + r('DE : BC', de, BC, 'ok');
+      html += '<div class="small muted">和 D 在同一條直線上的是 B，所以 AD 對 AB。</div>';
+    }
+    rt.innerHTML = html;
+  }
+  input.addEventListener('input', function () { v = +input.value; draw(); });
+  var dragging = false;
+  function moveTo(ev) {
+    var svg = box.querySelector('svg'); if (!svg) return;
+    var p = svgPoint(svg, ev), ux = Bp.x - Ap.x, uy = Bp.y - Ap.y, t = ((p.x - Ap.x) * ux + (p.y - Ap.y) * uy) / (ux * ux + uy * uy);
+    var nv = Math.round(t * AB * 2); nv = Math.max(lo, Math.min(hi, nv)); if (nv === 0) nv = v > 0 ? 1 : -1;
+    if (nv !== v) { v = nv; input.value = v; draw(); }
+  }
+  box.addEventListener('pointerdown', function (ev) { dragging = true; try { box.setPointerCapture(ev.pointerId); } catch (e) {} moveTo(ev); ev.preventDefault(); });
+  box.addEventListener('pointermove', function (ev) { if (dragging) moveTo(ev); });
+  box.addEventListener('pointerup', function () { dragging = false; });
+  box.addEventListener('pointercancel', function () { dragging = false; });
+  draw();
+}
+
+// 面積比是平方: a triangle with k times the side splits into k² copies of the small one.
+function demoScale(el) {
+  var k = 2;
+  el.innerHTML = '<div class="row between"><span class="tag">動手看看</span><span class="small muted">相似比 1 : k</span></div>' +
+    '<div class="ctl"><span class="small">k ＝</span><div class="seg" role="group" aria-label="相似比">' + [1, 2, 3, 4].map(function (n) { return '<button data-k="' + n + '">' + n + '</button>'; }).join('') + '</div></div>' +
+    '<div class="dgw" style="justify-self:center" data-r="svg"></div><div class="rt" data-r="rt"></div>';
+  var box = el.querySelector('[data-r=svg]'), rt = el.querySelector('[data-r=rt]');
+  function draw() {
+    Array.prototype.forEach.call(el.querySelectorAll('[data-k]'), function (b) { b.classList.toggle('on', +b.getAttribute('data-k') === k); b.setAttribute('aria-pressed', +b.getAttribute('data-k') === k ? 'true' : 'false'); });
+    var T = { x: 120, y: 18 }, L = { x: 24, y: 176 }, R = { x: 216, y: 176 };
+    var P = function (r, c) { return { x: T.x + (L.x - T.x) * r / k + (R.x - L.x) * c / k, y: T.y + (L.y - T.y) * r / k }; };
+    var s = '';
+    for (var r = 0; r < k; r++) for (var c = 0; c <= r; c++) {
+      var a = P(r, c), b = P(r + 1, c), d = P(r + 1, c + 1);
+      s += '<polygon points="' + [a, b, d].map(function (p) { return p.x.toFixed(1) + ',' + p.y.toFixed(1); }).join(' ') + '" class="' + (r === 0 && c === 0 ? 'f-warn' : 'f-accent') + '"/>';
+      if (c < r) { var e = P(r, c + 1); s += '<polygon points="' + [a, e, d].map(function (p) { return p.x.toFixed(1) + ',' + p.y.toFixed(1); }).join(' ') + '" class="f-accent" style="fill-opacity:.08"/>'; }
+    }
+    for (var i = 1; i < k; i++) {
+      var p1 = P(i, 0), p2 = P(i, i); s += '<line x1="' + p1.x + '" y1="' + p1.y + '" x2="' + p2.x + '" y2="' + p2.y + '" class="s-faint"/>';
+      var q1 = P(i, 0), q2 = P(k, k - i); s += '<line x1="' + q1.x + '" y1="' + q1.y + '" x2="' + q2.x + '" y2="' + q2.y + '" class="s-faint"/>';
+      var r1 = P(i, i), r2 = P(k, i); s += '<line x1="' + r1.x + '" y1="' + r1.y + '" x2="' + r2.x + '" y2="' + r2.y + '" class="s-faint"/>';
+    }
+    s += '<polygon points="' + [T, L, R].map(function (p) { return p.x + ',' + p.y; }).join(' ') + '" class="s-solid"/>';
+    box.innerHTML = '<svg viewBox="0 0 240 190" class="dg" role="img" aria-label="邊長 ' + k + ' 倍的三角形切成 ' + (k * k) + ' 個小三角形">' + s + '</svg>';
+    rt.innerHTML = '<div class="r ok"><span class="x">邊長比（小 : 大）</span><span class="eq">1 : ' + k + '</span></div>' +
+      '<div class="r ok"><span class="x">周長比</span><span class="eq">1 : ' + k + '</span></div>' +
+      '<div class="r ok"><span class="x">面積比（數數看有幾個黃色那樣的小三角形）</span><span class="eq">1 : ' + (k * k) + '</span></div>' +
+      '<div class="small muted">邊長變 ' + k + ' 倍，底和高都變 ' + k + ' 倍，面積就變 ' + k + ' × ' + k + ' ＝ ' + (k * k) + ' 倍。</div>';
+  }
+  el.addEventListener('click', function (ev) { var b = ev.target.closest('[data-k]'); if (b) { k = +b.getAttribute('data-k'); draw(); } });
+  draw();
+}
+
+// 母子相似: ∠ACB = 90°, CD ⊥ AB, AD = 4, DB = 9, CD = 6.
+function demoMother(el) {
+  var mode = 'all', s = 15, A = { x: 22, y: 126 }, B = { x: 22 + 13 * s, y: 126 }, D = { x: 22 + 4 * s, y: 126 }, C = { x: 22 + 4 * s, y: 126 - 6 * s };
+  var tri = { big: ['A', 'C', 'B'], left: ['A', 'D', 'C'], right: ['C', 'D', 'B'] };
+  var names = { big: '大 △ACB', left: '左 △ADC', right: '右 △CDB' };
+  el.innerHTML = '<div class="row between"><span class="tag">動手看看</span><span class="small muted">AD ＝ 4、DB ＝ 9、CD ＝ 6</span></div>' +
+    '<div class="seg" role="group" aria-label="看哪一個三角形"><button data-m="big">大</button><button data-m="left">左</button><button data-m="right">右</button><button data-m="apart">拆開排好</button></div>' +
+    '<div class="dgw" style="justify-self:center" data-r="svg"></div><div class="rt" data-r="rt"></div>';
+  var box = el.querySelector('[data-r=svg]'), rt = el.querySelector('[data-r=rt]');
+  function draw() {
+    Array.prototype.forEach.call(el.querySelectorAll('[data-m]'), function (b) { b.classList.toggle('on', b.getAttribute('data-m') === mode); });
+    if (mode === 'apart') {
+      // each triangle drawn with its right angle bottom-left, the "∠A" corner bottom-right, the "∠B" corner on top
+      var k = 7.5, out = '', x = 18, base = 176;
+      var legs = [['big', 'C', 'A', 'B', Math.sqrt(52), Math.sqrt(117)], ['left', 'D', 'A', 'C', 4, 6], ['right', 'D', 'C', 'B', 6, 9]];
+      legs.forEach(function (L, i) {
+        var R = { id: L[1] + i, x: x, y: base, label: L[1], pos: 'sw' }, Pa = { id: L[2] + i, x: x + L[4] * k, y: base, label: L[2], pos: 'se' }, Pb = { id: L[3] + i, x: x, y: base - L[5] * k, label: L[3], pos: 'n' };
+        out += dgRender({ w: 260, h: 200, points: [R, Pa, Pb], segments: [{ a: R.id, b: Pa.id }, { a: Pa.id, b: Pb.id }, { a: Pb.id, b: R.id }], fills: [{ pts: [R.id, Pa.id, Pb.id], tone: i === 0 ? 'ok' : i === 1 ? 'accent' : 'warn' }], rightAngles: [{ at: R.id, a: Pa.id, b: Pb.id }], arcs: [{ at: Pa.id, a: R.id, b: Pb.id, n: 1 }, { at: Pb.id, a: R.id, b: Pa.id, n: 2 }] }).replace(/^<svg[^>]*>|<\/svg>$/g, '');
+        x += L[4] * k + 26;
+      });
+      box.innerHTML = '<svg viewBox="0 0 260 200" class="dg" role="img" aria-label="三個相似的直角三角形排成同一個方向">' + out + '</svg>';
+      rt.innerHTML = '<div class="small muted">排成同一個方向後：直角都在左下，一條弧的角（和 ∠A 一樣大）都在右下，兩條弧的角（和 ∠B 一樣大）都在上面。</div>' +
+        '<div class="r ok"><span class="x">直角</span><span class="eq">C、D、D</span></div>' +
+        '<div class="r ok"><span class="x">和 ∠A 一樣大</span><span class="eq">A、A、C</span></div>' +
+        '<div class="r ok"><span class="x">和 ∠B 一樣大</span><span class="eq">B、C、B</span></div>' +
+        '<div class="small">所以 △ACB ∼ △ADC ∼ △CDB。左和右：AD : CD ＝ CD : DB → 4 : 6 ＝ 6 : 9 → CD² ＝ AD × DB ＝ 36。</div>';
+      return;
+    }
+    var pts = [{ id: 'A', x: A.x, y: A.y, pos: 'sw' }, { id: 'B', x: B.x, y: B.y, pos: 'se' }, { id: 'C', x: C.x, y: C.y, pos: 'n' }, { id: 'D', x: D.x, y: D.y, pos: 's' }];
+    var fills = mode === 'all' ? [] : [{ pts: tri[mode], tone: mode === 'big' ? 'ok' : mode === 'left' ? 'accent' : 'warn' }];
+    var d = { w: 240, h: 150, points: pts, segments: [{ a: 'A', b: 'B' }, { a: 'B', b: 'C' }, { a: 'C', b: 'A' }, { a: 'C', b: 'D', style: 'dashed' }], fills: fills,
+      rightAngles: [{ at: 'D', a: 'B', b: 'C' }], arcs: [{ at: 'A', a: 'B', b: 'C', n: 1 }, { at: 'C', a: 'D', b: 'B', n: 1 }, { at: 'B', a: 'A', b: 'C', n: 2 }, { at: 'C', a: 'A', b: 'D', n: 2 }],
+      lengths: [{ a: 'A', b: 'D', text: '4', side: 'r' }, { a: 'D', b: 'B', text: '9', side: 'r' }, { a: 'C', b: 'D', text: '6', side: 'r' }] };
+    box.innerHTML = dgRender(d, { label: '直角三角形與斜邊上的高' });
+    var info = { all: '∠ACB ＝ 90°，CD 是斜邊上的高。按「大、左、右」看三個直角三角形。一條弧的角都和 ∠A 一樣大，兩條弧的角都和 ∠B 一樣大。',
+      big: '大 △ACB：直角在 C，∠A（一條弧）、∠B（兩條弧）。', left: '左 △ADC：直角在 D，A 是一條弧的角，C 這裡是兩條弧的角。和大三角形有兩個角一樣 → 相似（AA）。',
+      right: '右 △CDB：直角在 D，C 這裡是一條弧的角，B 是兩條弧的角。也和大三角形相似（AA）。' }[mode];
+    rt.innerHTML = '<div class="small">' + info + '</div>' + (mode === 'all' ? '' : '<div class="r ok"><span class="x">' + names[mode] + ' 的頂點順序（直角、一條弧、兩條弧）</span><span class="eq">' + { big: 'C、A、B', left: 'D、A、C', right: 'D、C、B' }[mode] + '</span></div>');
+  }
+  el.addEventListener('click', function (ev) { var b = ev.target.closest('[data-m]'); if (b) { mode = mode === b.getAttribute('data-m') ? 'all' : b.getAttribute('data-m'); draw(); } });
+  draw();
+}
+
+// ---------- routing & events ----------
+function route() {
+  var h = (location.hash || '').replace('#', '');
+  var idx = SECS.map(function (s) { return s.id; }).indexOf(h);
+  if (h === 'exam') renderExam();
+  else if (idx >= 0) renderSection(idx);
+  else { h = ''; renderHome(); }
+  renderChrome(h);
+}
+document.addEventListener('click', function (ev) {
+  var t = ev.target.closest('[data-act]'); if (!t) return;
+  var act = t.getAttribute('data-act'), id = t.getAttribute('data-id');
+  if (act === 'pick') onPick(id, +t.getAttribute('data-i'));
+  else if (act === 'hint') { var s = checkState(id); s.hint++; save(); refresh(id, 'chk'); }
+  else if (act === 'sol') { checkState(id).sol = true; save(); refresh(id, 'chk'); }
+  else if (act === 'nextv') { var s2 = checkState(id); s2.v++; s2.picks = []; s2.hint = 0; s2.sol = false; s2.tries++; save(); refresh(id, 'chk'); var el = document.getElementById('chk-' + id); if (el && el.scrollIntoView) el.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+  else if (act === 'step') { MEM.ex[id] = (MEM.ex[id] || 0) + 1; refresh(id, 'ex'); }
+  else if (act === 'allsteps') { var b = findBlock(id); MEM.ex[id] = b ? b.steps.length : 0; refresh(id, 'ex'); }
+  else if (act === 'resetsteps') { MEM.ex[id] = 0; refresh(id, 'ex'); }
+  else if (act === 'exam-start') startExam();
+  else if (act === 'exam-pick') { var E = ST.exam; if (E && E.ans[E.idx] == null) { E.ans[E.idx] = +t.getAttribute('data-i'); save(); renderExam(); } }
+  else if (act === 'exam-next') {
+    var E2 = ST.exam; E2.idx++;
+    if (E2.idx >= E2.order.length) {
+      E2.done = true; var ok = 0; E2.order.forEach(function (pi, i) { if (E2.ans[i] === examProblem(i).q.answer) ok++; });
+      if (ST.best == null || ok > ST.best.ok) ST.best = { ok: ok, n: E2.order.length };
+    }
+    save(); renderExam(); renderChrome('exam'); window.scrollTo(0, 0);
+  }
+});
+window.addEventListener('hashchange', function () { route(); window.scrollTo(0, 0); });
+window.dgRenderPublic = function (d) { return dgRender(d); };
+route();
+})();
+</script>

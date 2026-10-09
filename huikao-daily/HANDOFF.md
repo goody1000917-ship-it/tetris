@@ -31,7 +31,7 @@ Worker 本身的測試：`cd test && npm install && node huikao-worker.test.mjs`
 
 ## 相似形・比例線段教學（2026-10-09）
 
-- 使用者說「我需要學會相似形比例線段」，做了一頁互動教學：`huikao-daily/learn/similar.html`（claude.ai Artifact：見下方連結）。9 節（暖身、A 字型、X 字型與三平行線、判斷平行與中點連線、相似形、AA/SAS/SSS、周長比與面積比、母子相似與特殊直角三角形、生活應用）加 16 題型的會考實戰，每題 2～3 個換數字的版本。進度存在瀏覽器（localStorage），不進同步紀錄。
+- 使用者說「我需要學會相似形比例線段」，做了一頁互動教學：`huikao-daily/learn/similar.html`（claude.ai Artifact：https://claude.ai/artifact/6GY9x1HABqGvoEbDp33DMJ ）。9 節（暖身、A 字型、X 字型與三平行線、判斷平行與中點連線、相似形、AA/SAS/SSS、周長比與面積比、母子相似與特殊直角三角形、生活應用）加 16 題型的會考實戰，每題 2～3 個換數字的版本。進度存在瀏覽器（localStorage），不進同步紀錄。
 - 內容由 Workflow 產生：每節一位作者 → 盲解＋數學審稿＋「基礎不穩學生」審稿＋程式檢查圖的座標 → 修改 → 再盲解一次，不一致的題目丟掉；最後整份再審一次（前後一致、學生從頭走一遍、每張圖截圖目視、挑答案鍵的錯）。流程、原始檔與測試在 `huikao-daily/tools/lesson/`。
 - 題庫另外加了 12 題「比例線段與相似三角形」原題（M17-13～M17-24）。repo 的 `questions.json` 連替身一起加；給正式網站用的是 `tools/m17-new-questions.json`（只有原題，因為正式網站的頁面不認得替身）。
 - 放上正式網站的安全做法（不碰電腦上的英文、AI 改動）：`git fetch origin master`，`git checkout origin/master -- huikao-daily/learn huikao-daily/tools/add-questions.mjs huikao-daily/tools/m17-new-questions.json`，`node huikao-daily/tools/add-questions.mjs huikao-daily/tools/m17-new-questions.json`，再進 `huikao-worker` 執行 `npx wrangler@latest deploy`。
