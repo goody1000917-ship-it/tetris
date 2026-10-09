@@ -33,10 +33,12 @@ npx wrangler@latest deploy                        # 綁到 daily.happygoody.net�
 
 - `index.html`：網頁本體。
 - `questions.json`：題庫。每題都先由一個代理出題、再由另一個代理在看不到答案的情況下獨立作答，答案一致且不是一步就能答的題才保留。
+- `learn/similar.html`：「相似形・比例線段」互動教學（9 節＋會考實戰，可拖動的圖、一步一步的例題、做錯會說明可能哪裡想錯）。獨立一頁，不改動每日練；網址 https://daily.happygoody.net/learn/similar.html 。原始檔與產生、檢查流程在 `tools/lesson/`。
 - `manifest.webmanifest`、`sw.js`、`icon.svg`：自己架站時的 PWA 與離線快取（在 claude.ai 裡不會載入）。
 - `tools/qbank-workflow.js`：出題與盲解驗證的 Workflow 腳本。
 - `tools/build-bank.py`：把各 Workflow 的結果合併成 `questions.json`，並把正確答案的 ABCD 位置打散平均。
 - `tools/variants-workflow.js`：替身題的 Workflow（每題原題出 2 題同觀念、換數字或換材料的替身，一樣盲解驗證）；`tools/merge-variants.py` 把結果併進 `questions.json`（`variant_of` 指向原題）。
+- `tools/add-questions.mjs`：把新題目加進 `questions.json`，已經有的 id 不動（`node huikao-daily/tools/add-questions.mjs <檔案>`）。
 - `tools/test-logic.js`：遺忘曲線排程與每日選題邏輯的單元測試（`node tools/test-logic.js`）。
 - `../huikao-worker/`：同步 API。測試：`cd test && npm install && node huikao-worker.test.mjs`，端到端：`node huikao-e2e.mjs`。
 
