@@ -10,6 +10,14 @@
 - 題庫 `questions.json`：471 題原題（數學 206、社會 265）加 935 題替身（`variant_of` 指向原題；同觀念、不同數字或材料），每題都經過第二個代理盲解驗證。
 - 使用者是國三生，手機操作，不熟指令。用詞要簡單。
 
+## 注意：正式網站和這個 repo 已經分岔（2026-10-09 發現）
+
+- daily.happygoody.net 上跑的版本是在使用者電腦上改的，**沒有推到 GitHub**。它比這裡多了：英文科（E01…，120 題）、AI 雙胞胎題（Worker 的 `op: 'twin'`，要輸入 AI 通行碼）、AI 問答、英文寫作批改（`op: 'grade'`），數學解析全部改寫成「第 n 步」並加了解析圖 `explain_svg`。
+- 這個 repo 的 master 沒有上面那些，但有替身題（`variant_of`，935 題）、分享連結與「名字＋密碼」登入。正式網站沒有這些。
+- 所以**不要在電腦上 `git pull origin master` 再部署**：會和電腦上沒推的改動衝突，或把英文、AI 功能蓋掉。
+- 要把新東西放上正式網站，只拿新檔案，例如：`git fetch origin master` 然後 `git checkout origin/master -- huikao-daily/learn`，再部署。
+- 之後要合併兩邊：先請連電腦的對話把它的版本 commit 並推到 GitHub 的新分支（不要把 `.dev.vars` 或任何金鑰、通行碼加進去），再由任一個對話把兩邊合併成一個版本。
+
 ## 怎麼更新網頁
 
 1. 改 `huikao-daily/index.html`（或 `questions.json`），跑 `node huikao-daily/tools/test-logic.js`。
