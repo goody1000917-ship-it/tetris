@@ -6,7 +6,9 @@ import { fileURLToPath } from 'url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const [auditFile, out, ...qaFiles] = process.argv.slice(2);
 const html = fs.readFileSync(path.join(here, '..', 'lesson', 'similar.src.html'), 'utf8');
-const dgRender = new Function(html.slice(html.indexOf('/*@dg-start*/'), html.indexOf('/*@dg-end*/')) + '\nreturn dgRender;')();
+const dgRenderRaw = new Function(html.slice(html.indexOf('/*@dg-start*/'), html.indexOf('/*@dg-end*/')) + '\nreturn dgRender;')();
+// science graphs carry their own axis names (時間（s）, 位置（m）), so the default x / y / O labels are left out
+const dgRender = (d, o) => dgRenderRaw(d.axes ? Object.assign({}, d, { axes: Object.assign({}, d.axes, { plain: true }) }) : d, o);
 const audit = JSON.parse(fs.readFileSync(auditFile, 'utf8'));
 const fixes = qaFiles.flatMap(f => JSON.parse(fs.readFileSync(f, 'utf8')).result.fixes);
 const byId = new Map(audit.map(q => [q.id, q]));

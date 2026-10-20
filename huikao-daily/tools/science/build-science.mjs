@@ -10,7 +10,9 @@ const argv = process.argv.slice(2), ai = argv.indexOf('--audit');
 const auditOut = ai >= 0 ? argv.splice(ai, 2)[1] : null;
 const [out, ...files] = argv;
 const html = fs.readFileSync(path.join(here, '..', 'lesson', 'similar.src.html'), 'utf8');
-const dgRender = new Function(html.slice(html.indexOf('/*@dg-start*/'), html.indexOf('/*@dg-end*/')) + '\nreturn dgRender;')();
+const dgRenderRaw = new Function(html.slice(html.indexOf('/*@dg-start*/'), html.indexOf('/*@dg-end*/')) + '\nreturn dgRender;')();
+// science graphs carry their own axis names (時間（s）, 位置（m）), so the default x / y / O labels are left out
+const dgRender = (d, o) => dgRenderRaw(d.axes ? Object.assign({}, d, { axes: Object.assign({}, d.axes, { plain: true }) }) : d, o);
 const wf = fs.readFileSync(path.join(here, 'science-workflow.js'), 'utf8');
 const SCI = new Function(wf.slice(wf.indexOf('const SCI = {'), wf.indexOf('const SCI_STYLE')) + '\nreturn SCI;')();
 const all = [];

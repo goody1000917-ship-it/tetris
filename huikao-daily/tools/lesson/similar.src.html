@@ -256,9 +256,11 @@ function dgRender(d, opt) {
     out.push('<path d="M' + f(ox) + ' 8l-3.5 7h7z"' + (inline ? ' fill="currentColor" fill-opacity=".75"' : ' class="pt"') + '/>');
     for (var k = Math.ceil((8 - ox) / u); ox + k * u < w - 14; k++) { if (!k) continue; line(ox + k * u, oy - 3, ox + k * u, oy + 3, 'ax'); if (u >= 16) out.push('<text x="' + f(ox + k * u) + '" y="' + f(oy + 13) + '" text-anchor="middle"' + A('tk') + '>' + k + '</text>'); }
     for (var m = Math.ceil((oy - (h - 8)) / u); oy - m * u > 14; m++) { if (!m) continue; line(ox - 3, oy - m * u, ox + 3, oy - m * u, 'ax'); if (u >= 16) out.push('<text x="' + f(ox - 6) + '" y="' + f(oy - m * u + 3) + '" text-anchor="end"' + A('tk') + '>' + m + '</text>'); }
-    out.push('<text x="' + f(w - 10) + '" y="' + f(oy - 7) + '" text-anchor="end"' + A('lb') + '>x</text>');
-    out.push('<text x="' + f(ox + 8) + '" y="16"' + A('lb') + '>y</text>');
-    out.push('<text x="' + f(ox - 5) + '" y="' + f(oy + 13) + '" text-anchor="end"' + A('lb') + '>O</text>');
+    if (!ax.plain) {                                         // plain: the figure names its own axes (science graphs)
+      out.push('<text x="' + f(w - 10) + '" y="' + f(oy - 7) + '" text-anchor="end"' + A('lb') + '>x</text>');
+      out.push('<text x="' + f(ox + 8) + '" y="16"' + A('lb') + '>y</text>');
+      out.push('<text x="' + f(ox - 5) + '" y="' + f(oy + 13) + '" text-anchor="end"' + A('lb') + '>O</text>');
+    }
   }
   (d.fills || []).forEach(function (fl) {
     if (!fl.pts || fl.pts.length < 3 || !have(fl.pts)) return;
