@@ -1,0 +1,190 @@
+--- a/huikao-daily/index.html
++++ b/huikao-daily/index.html
+@@ -10,7 +10,7 @@
+ :root{
+   --bg:#F1F3F6; --paper:#FFFFFF; --ink:#1B2430; --muted:#5F6B7D; --line:#D5DBE5; --line-soft:#E7EBF1;
+   --accent:#2C58B4; --accent-ink:#FFFFFF; --accent-soft:#E4ECFA;
+-  --ok:#15744A; --ok-soft:#E1F3E9; --bad:#B0321F; --bad-soft:#FBE6E2; --warn:#8A5A08; --warn-soft:#FBF0D6;
++  --ok:#15744A; --ok-soft:#E1F3E9; --bad:#B0321F; --bad-soft:#FBE6E2; --warn:#8A5A08; --warn-soft:#FBF0D6; --sci:#0B6E78; --sci-soft:#DDF1F2;
+   --grid:rgba(44,88,180,.07); --shadow:0 1px 2px rgba(27,36,48,.06),0 8px 24px rgba(27,36,48,.06);
+   --font-body:"Noto Sans TC",system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;
+   --font-display:"LXGW WenKai TC","Noto Sans TC","PingFang TC",serif;
+@@ -21,7 +21,7 @@
+   :root:not([data-theme="light"]){
+     --bg:#11161F; --paper:#1A2130; --ink:#E9EDF3; --muted:#9BA6B9; --line:#2D3748; --line-soft:#232C3B;
+     --accent:#8AADF2; --accent-ink:#0E1626; --accent-soft:#243655;
+-    --ok:#5CD095; --ok-soft:#17311F; --bad:#F39183; --bad-soft:#3B201B; --warn:#E3B55B; --warn-soft:#3A2D14;
++    --ok:#5CD095; --ok-soft:#17311F; --bad:#F39183; --bad-soft:#3B201B; --warn:#E3B55B; --warn-soft:#3A2D14; --sci:#62C6CF; --sci-soft:#143139;
+     --grid:rgba(138,173,242,.09); --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);
+     color-scheme:dark;
+   }
+@@ -29,7 +29,7 @@
+ :root[data-theme="dark"]{
+   --bg:#11161F; --paper:#1A2130; --ink:#E9EDF3; --muted:#9BA6B9; --line:#2D3748; --line-soft:#232C3B;
+   --accent:#8AADF2; --accent-ink:#0E1626; --accent-soft:#243655;
+-  --ok:#5CD095; --ok-soft:#17311F; --bad:#F39183; --bad-soft:#3B201B; --warn:#E3B55B; --warn-soft:#3A2D14;
++  --ok:#5CD095; --ok-soft:#17311F; --bad:#F39183; --bad-soft:#3B201B; --warn:#E3B55B; --warn-soft:#3A2D14; --sci:#62C6CF; --sci-soft:#143139;
+   --grid:rgba(138,173,242,.09); --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);
+   color-scheme:dark;
+ }
+@@ -56,6 +56,7 @@
+ .chip.math{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+ .chip.social{color:var(--warn);border-color:var(--warn);background:var(--warn-soft)}
+ .chip.english{color:var(--ok);border-color:var(--ok);background:var(--ok-soft)}
++.chip.science{color:var(--sci);border-color:var(--sci);background:var(--sci-soft)}
+ .subj{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch}
+ .subj button{flex:0 0 auto}
+ .chip.hard{color:var(--bad);border-color:var(--bad);background:var(--bad-soft)}
+@@ -258,10 +259,10 @@
+ var INTERVALS = [1, 3, 7, 14, 30];   // days until the next review after the 1st..4th correct answer; [4] is the check after 學會
+ var MASTER_BOX = 5;                  // correct on 5 separate days -> learned; then a 30-day check, then every 60 days
+ var MAINTAIN_DAYS = 60;
+-var DEFAULT_SETTINGS = { budget: 20, mathNew: 4, socialNew: 4, englishNew: 3, hardBias: false };
+-var SUBJECTS = ['math', 'social', 'english'];
+-var SUBJECT_NAME = { math: '數學', social: '社會', english: '英文' };
+-var NEW_KEY = { math: 'mathNew', social: 'socialNew', english: 'englishNew' };
++var DEFAULT_SETTINGS = { budget: 20, mathNew: 4, socialNew: 4, englishNew: 3, scienceNew: 3, hardBias: false };
++var SUBJECTS = ['math', 'social', 'english', 'science'];
++var SUBJECT_NAME = { math: '數學', social: '社會', english: '英文', science: '自然' };
++var NEW_KEY = { math: 'mathNew', social: 'socialNew', english: 'englishNew', science: 'scienceNew' };
+ var WHY = { concept: '觀念不會', slip: '粗心或算錯', misread: '看錯題目' };
+ var MATH_META = {
+   M01:[1,'整數的運算','A'],M02:[2,'分數的運算','A'],M03:[3,'一元一次方程式','B'],M04:[4,'二元一次聯立方程式','A'],
+@@ -271,13 +272,14 @@
+   M17:[17,'連比例與相似形','A'],M18:[18,'圓','A'],M19:[19,'幾何與證明','A'],M20:[20,'二次函數','A'],M21:[21,'統計與機率、立體圖形','A']
+ };
+ var AREAS = ['歷史', '地理', '公民'];
++var SCI_AREAS = ['生物', '理化'];
+ var FIG_IMG_RE = /^img\/[\w-]+\.webp$/;   // 會考 figures cropped from the exam PDF (tools/crop-fig.py)
+ var POS_REF = /選項[一二三四]|第[一二三四]個選項|[①②③④]/;   // explanations that name options by position must keep the bank's order
+ 
+ function normalizeSettings(s) {
+   var o = Object.assign({}, DEFAULT_SETTINGS, s || {});
+   if (!(o.budget >= 1)) o.budget = DEFAULT_SETTINGS.budget;   // older saved settings had reviewCap instead
+-  return { budget: Math.max(4, Math.min(60, o.budget | 0)), mathNew: Math.max(0, Math.min(10, o.mathNew | 0)), socialNew: Math.max(0, Math.min(10, o.socialNew | 0)), englishNew: Math.max(0, Math.min(10, o.englishNew | 0)), hardBias: !!o.hardBias };
++  return { budget: Math.max(4, Math.min(60, o.budget | 0)), mathNew: Math.max(0, Math.min(10, o.mathNew | 0)), socialNew: Math.max(0, Math.min(10, o.socialNew | 0)), englishNew: Math.max(0, Math.min(10, o.englishNew | 0)), scienceNew: Math.max(0, Math.min(10, o.scienceNew | 0)), hardBias: !!o.hardBias };
+ }
+ function pad2(n) { return (n < 10 ? '0' : '') + n; }
+ function toDateStr(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+@@ -397,7 +399,7 @@
+   while (out.length < n && remaining.length) {
+     var cand = remaining;
+     if (balanceAreas) {
+-      var areas = AREAS.filter(function (a) { return remaining.some(function (q) { return q.area === a; }); });
++      var areas = (Array.isArray(balanceAreas) ? balanceAreas : AREAS).filter(function (a) { return remaining.some(function (q) { return q.area === a; }); });
+       if (!areas.length) break;
+       var minCount = Math.min.apply(null, areas.map(function (a) { return perArea[a] || 0; }));
+       var pickArea = areas.filter(function (a) { return (perArea[a] || 0) === minCount; });
+@@ -445,7 +447,7 @@
+     dealt = false;
+     SUBJECTS.forEach(function (sub) { if (slots > 0 && want[sub] < cap[sub]) { want[sub]++; slots--; dealt = true; } });
+   }
+-  var fresh = SUBJECTS.map(function (sub) { return pickNew(pools[sub], want[sub], rng, wfn, 2, sub === 'social'); });
++  var fresh = SUBJECTS.map(function (sub) { return pickNew(pools[sub], want[sub], rng, wfn, 2, sub === 'social' || (sub === 'science' && SCI_AREAS)); });
+   return { reviews: reviews.map(function (q) { return q.id; }), fresh: interleaveAll(fresh).map(function (q) { return q.id; }) };
+ }
+ // Extra practice on one unit: unseen questions first, then the ones due today, then the shakiest of the rest.
+@@ -657,8 +659,9 @@
+ function addMore(n) {
+   if (rollover()) { render(); return; }
+   var day = todayDoc(); var ex = {}; day.ids.forEach(function (id) { ex[id] = true; });
+-  var a3 = Math.ceil(n / 3), b3 = Math.ceil((n - a3) / 2);
+-  var settings = Object.assign({}, S.settings, { budget: n, mathNew: a3, socialNew: b3, englishNew: n - a3 - b3 });
++  var split = {}, left = n;
++  SUBJECTS.forEach(function (sub, i) { var k = Math.ceil(left / (SUBJECTS.length - i)); split[NEW_KEY[sub]] = k; left -= k; });
++  var settings = Object.assign({}, S.settings, split, { budget: n });
+   var pick = pickDaily(S.bank, S.cards, settings, S.today, ex);
+   var extra = pick.reviews.concat(pick.fresh);   // reviews that rolled over today come first, then new questions
+   if (!extra.length) { toast('題庫裡沒有還沒做過的新題了。'); return; }
+@@ -761,7 +764,7 @@
+   else if (S.tab === 'progress') renderProgress();
+   else renderSettings();
+ }
+-function subjectChip(q) { return '<span class="chip ' + q.subject + '">' + (q.subject === 'social' ? esc(q.area || '社會') : SUBJECT_NAME[q.subject] || '') + '</span>'; }
++function subjectChip(q) { return '<span class="chip ' + q.subject + '">' + (q.subject === 'social' || q.subject === 'science' ? esc(q.area || SUBJECT_NAME[q.subject]) : SUBJECT_NAME[q.subject] || '') + '</span>'; }
+ function unitLabel(unit) { var m = MATH_META[unit]; if (m) return m[0] + '. ' + m[1]; var q = S.bank.filter(function (x) { return x.unit === unit; })[0]; return q ? q.unit_name : unit; }
+ function offlineNote() {
+   if (!S.offline) return '';
+@@ -771,7 +774,7 @@
+ // The 今天 tab opens on today's mixed set; the bar on top switches to one subject, or to English sentence writing.
+ function subjectBar(ses) {
+   var cur = ses.kind === 'daily' ? 'daily' : ses.kind === 'subject' ? ses.subject : ses.kind === 'write' ? 'write' : '';
+-  var items = [['daily', '今天綜合', 'back-daily'], ['math', '數學', 'subject'], ['social', '社會', 'subject'], ['english', '英文', 'subject'], ['write', '英文造句', 'write']];
++  var items = [['daily', '今天綜合', 'back-daily'], ['math', '數學', 'subject'], ['social', '社會', 'subject'], ['english', '英文', 'subject'], ['science', '自然', 'subject'], ['write', '英文造句', 'write']];
+   return '<div class="subj">' + items.map(function (it) { return '<button class="chip' + (cur === it[0] ? ' on' : '') + '" data-act="' + it[2] + '" data-s="' + it[0] + '">' + it[1] + '</button>'; }).join('') + '</div>';
+ }
+ function renderToday() {
+@@ -782,7 +785,7 @@
+   if (ses.kind === 'unit') head += '<div class="row between"><span class="chip">加練：' + esc(unitLabel(ses.unit)) + '</span><button class="btn mini" data-act="back-daily">回到今天的題目</button></div>';
+   if (ses.kind === 'wrong') head += '<div class="row between"><span class="chip">重做錯題</span><button class="btn mini" data-act="back-daily">回到今天的題目</button></div>';
+   if (!total) {
+-    var cause = (S.settings.mathNew + S.settings.socialNew + S.settings.englishNew === 0) ? '三科的新題上限都是 0，而且今天沒有到期的複習題。' : '題庫裡還沒做過的題目都做完了，今天也沒有到期的複習題。';
++    var cause = (S.settings.mathNew + S.settings.socialNew + S.settings.englishNew + S.settings.scienceNew === 0) ? '各科的新題上限都是 0，而且今天沒有到期的複習題。' : '題庫裡還沒做過的題目都做完了，今天也沒有到期的複習題。';
+     $view.innerHTML = head + '<section class="card empty"><b>今天沒有題目</b><span>' + cause + '</span><div><button class="btn primary" data-act="tab" data-tab="settings">調整設定</button></div></section>';
+     return;
+   }
+@@ -1022,7 +1025,7 @@
+   var list = wrongList(S.bank, S.cards);
+   var f = S.wrongFilter;
+   var shown = list.filter(function (q) { return f === 'all' || q.subject === f; });
+-  var html = '<div class="row between"><div class="row">' + [['all', '全部'], ['math', '數學'], ['social', '社會'], ['english', '英文']].map(function (p) { return '<button class="chip' + (f === p[0] ? ' on' : '') + '" data-act="wrong-filter" data-f="' + p[0] + '">' + p[1] + '</button>'; }).join('') + '</div>';
++  var html = '<div class="row between"><div class="row">' + [['all', '全部'], ['math', '數學'], ['social', '社會'], ['english', '英文'], ['science', '自然']].map(function (p) { return '<button class="chip' + (f === p[0] ? ' on' : '') + '" data-act="wrong-filter" data-f="' + p[0] + '">' + p[1] + '</button>'; }).join('') + '</div>';
+   html += '<button class="btn mini primary" data-act="redo-wrong"' + (shown.length ? '' : ' disabled') + '>重做 ' + Math.min(10, shown.length) + ' 題</button></div>';
+   if (!list.length) {
+     html += '<section class="card empty"><b>錯題本是空的</b><span>答錯的題目會自動收進來，一直到你把它學會。</span></section>';
+@@ -1073,23 +1076,30 @@
+     var seenN = list.filter(function (u) { return stats[u].seen; }).length;
+     html += '<details><summary><h2>社會 · ' + esc(area) + '</h2><span class="small muted num">' + seenN + ' / ' + list.length + ' 單元做過</span></summary><div class="units">' + list.map(function (u) { return unitRow(stats[u], stats[u].name); }).join('') + '</div></details>';
+   });
++  SCI_AREAS.forEach(function (area) {
++    var list = Object.keys(stats).filter(function (u) { return stats[u].subject === 'science' && stats[u].area === area; }).sort();
++    if (!list.length) return;
++    var seenN = list.filter(function (u) { return stats[u].seen; }).length;
++    html += '<details><summary><h2>自然 · ' + esc(area) + '</h2><span class="small muted num">' + seenN + ' / ' + list.length + ' 單元做過</span></summary><div class="units">' + list.map(function (u) { return unitRow(stats[u], stats[u].name); }).join('') + '</div></details>';
++  });
+   var eng = Object.keys(stats).filter(function (u) { return stats[u].subject === 'english'; }).sort();
+   if (eng.length) html += '<details><summary><h2>英文文法</h2><span class="small muted num">' + eng.filter(function (u) { return stats[u].seen; }).length + ' / ' + eng.length + ' 單元做過</span></summary><div class="units">' + eng.map(function (u) { return unitRow(stats[u], stats[u].name); }).join('') + '</div></details>';
+   $view.innerHTML = html;
+ }
+-function newHintText(m, s, e) { return '沒有複習題的日子會出 數學 ' + m + ' + 社會 ' + s + ' + 英文 ' + e + ' = ' + (m + s + e) + ' 題新題。'; }
++function newHintText(m, s, e, n) { n = n || 0; return '沒有複習題的日子會出 數學 ' + m + ' + 社會 ' + s + ' + 英文 ' + e + ' + 自然 ' + n + ' = ' + (m + s + e + n) + ' 題新題。'; }
+ function renderSettings() {
+-  var st = S.settings, counts = { math: 0, social: 0, english: 0 };
++  var st = S.settings, counts = { math: 0, social: 0, english: 0, science: 0 };
+   S.bank.forEach(function (q) { counts[q.subject]++; });
+   var html = '<section class="card"><h2>每天出幾題</h2>';
+   html += '<div class="field"><label for="budget">每天最多幾題（複習 + 新題）</label><input type="number" id="budget" min="4" max="60" value="' + st.budget + '"><span class="hint">到期的複習題一定先出，剩下的名額才出新題。複習多的日子新題就自動變少，所以不會爆量。</span></div>';
+   html += '<div class="field"><label for="mathNew">數學新題上限</label><input type="number" id="mathNew" min="0" max="10" value="' + st.mathNew + '"></div>';
+   html += '<div class="field"><label for="socialNew">社會新題上限</label><input type="number" id="socialNew" min="0" max="10" value="' + st.socialNew + '"></div>';
+-  html += '<div class="field"><label for="englishNew">英文新題上限</label><input type="number" id="englishNew" min="0" max="10" value="' + st.englishNew + '"><span class="hint" id="newHint">' + newHintText(st.mathNew, st.socialNew, st.englishNew) + '</span></div>';
++  html += '<div class="field"><label for="scienceNew">自然新題上限</label><input type="number" id="scienceNew" min="0" max="10" value="' + st.scienceNew + '"></div>';
++  html += '<div class="field"><label for="englishNew">英文新題上限</label><input type="number" id="englishNew" min="0" max="10" value="' + st.englishNew + '"><span class="hint" id="newHint">' + newHintText(st.mathNew, st.socialNew, st.englishNew, st.scienceNew) + '</span></div>';
+   html += '<label class="check"><input type="checkbox" id="hardBias"' + (st.hardBias ? ' checked' : '') + '>難題出多一點</label>';
+   html += '<div class="actions"><button class="btn primary" data-act="save-settings">儲存設定</button></div><p class="small muted" style="margin:10px 0 0">改了之後，明天的題組會照新設定出；今天已經排好的不變。</p></section>';
+   html += '<section class="card"><h2>怎麼算「學會」</h2><p class="small" style="margin:8px 0 0">答對後這題會在 1、3、7、14 天後各再出一次，間隔越拉越長，剛好在快忘記的時候出現。連第一次共五次都答對就算學會，30 天後再確認一次，之後每兩個月再確認。答錯就回到起點，明天再出；答對後按「其實是猜的」也會回到起點。同一題一天只算一次，當天重做不會往上爬。答對兩次以後才會出現「我確定會了」，按了就直接算學會。</p>';
+-  html += '<p class="small muted" style="margin:8px 0 0">題庫：數學 ' + counts.math + ' 題、社會 ' + counts.social + ' 題、英文文法 ' + counts.english + ' 題，只有中等與難題。英文題是 AI 出題、再由 AI 不看答案重解一次核對過的。</p></section>';
++  html += '<p class="small muted" style="margin:8px 0 0">題庫：數學 ' + counts.math + ' 題、社會 ' + counts.social + ' 題、英文文法 ' + counts.english + ' 題、自然 ' + counts.science + ' 題，只有中等與難題。英文題是 AI 出題、再由 AI 不看答案重解一次核對過的。</p></section>';
+   if (S.store.kind === 'remote' || (S.store.kind === 'local' && !IN_CLAUDE && S.syncCode)) {
+     html += '<section class="card"><h2>換裝置也能繼續</h2><p class="small" style="margin:8px 0 0">你的紀錄用這組同步碼存在雲端。在另一台手機或電腦打開同一個網址，把同步碼貼進去，就會看到同一份進度。不要把它給別人，拿到的人就能看到並改你的紀錄。</p>';
+     html += '<div class="code" id="synccode" style="margin-top:10px">' + esc(S.syncCode) + '</div><div class="actions"><button class="btn mini" data-act="copy-code">複製同步碼</button></div>';
+@@ -1110,9 +1120,9 @@
+ document.addEventListener('input', function (e) {
+   if (e.target.id === 'writeDraft' && S.session && S.session.kind === 'write') { S.session.drafts[S.session.ids[S.session.idx]] = e.target.value; }
+   if (e.target.id === 'aiDraft' && S.ai) { S.ai.draft = e.target.value; if (S.ai.err) { S.ai.err = ''; var er = document.querySelector('.ai .err'); if (er) er.remove(); } }
+-  if (e.target.id === 'mathNew' || e.target.id === 'socialNew' || e.target.id === 'englishNew') {
++  if (e.target.id === 'mathNew' || e.target.id === 'socialNew' || e.target.id === 'englishNew' || e.target.id === 'scienceNew') {
+     var num = function (k) { return parseInt(document.getElementById(k).value, 10) || 0; }, h = document.getElementById('newHint');
+-    if (h) h.textContent = newHintText(num('mathNew'), num('socialNew'), num('englishNew'));
++    if (h) h.textContent = newHintText(num('mathNew'), num('socialNew'), num('englishNew'), num('scienceNew'));
+   }
+ });
+ document.addEventListener('click', function (e) {
+@@ -1157,7 +1167,7 @@
+   }
+   else if (act === 'save-settings') {
+     var v = function (id, lo, hi) { var n = parseInt(document.getElementById(id).value, 10); return isNaN(n) ? lo : Math.max(lo, Math.min(hi, n)); };
+-    S.settings = normalizeSettings({ budget: v('budget', 4, 60), mathNew: v('mathNew', 0, 10), socialNew: v('socialNew', 0, 10), englishNew: v('englishNew', 0, 10), hardBias: document.getElementById('hardBias').checked });
++    S.settings = normalizeSettings({ budget: v('budget', 4, 60), mathNew: v('mathNew', 0, 10), socialNew: v('socialNew', 0, 10), englishNew: v('englishNew', 0, 10), scienceNew: v('scienceNew', 0, 10), hardBias: document.getElementById('hardBias').checked });
+     S.store.setSettings(S.settings).then(function () { toast('設定已儲存，明天開始生效。'); }).catch(saveErr);
+     render();
+   }

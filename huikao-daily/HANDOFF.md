@@ -34,14 +34,19 @@ Worker 本身的測試：`cd test && npm install && node huikao-worker.test.mjs`
 - 使用者說「我需要學會相似形比例線段」，做了一頁互動教學：`huikao-daily/learn/similar.html`（claude.ai Artifact：https://claude.ai/artifact/6GY9x1HABqGvoEbDp33DMJ ）。9 節（暖身、A 字型、X 字型與三平行線、判斷平行與中點連線、相似形、AA/SAS/SSS、周長比與面積比、母子相似與特殊直角三角形、生活應用）加 16 題型的會考實戰，每題 2～3 個換數字的版本。進度存在瀏覽器（localStorage），不進同步紀錄。
 - 內容由 Workflow 產生：每節一位作者 → 盲解＋數學審稿＋「基礎不穩學生」審稿＋程式檢查圖的座標 → 修改 → 再盲解一次，不一致的題目丟掉；最後整份再審一次（前後一致、學生從頭走一遍、每張圖截圖目視、挑答案鍵的錯）。流程、原始檔與測試在 `huikao-daily/tools/lesson/`。
 - 題庫另外加了 12 題「比例線段與相似三角形」原題（M17-13～M17-24）。repo 的 `questions.json` 連替身一起加；給正式網站用的是 `tools/m17-new-questions.json`（只有原題，因為正式網站的頁面不認得替身）。
-- 放上正式網站的安全做法（不碰電腦上的英文、AI 改動）：`git fetch origin master`，`git checkout origin/master -- huikao-daily/learn huikao-daily/tools/add-questions.mjs huikao-daily/tools/m17-new-questions.json`，`node huikao-daily/tools/add-questions.mjs huikao-daily/tools/m17-new-questions.json`，再進 `huikao-worker` 執行 `npx wrangler@latest deploy`。
+- 放上正式網站：見 `tools/pc-steps.md`（2026-10-20 起連自然科一起）。舊的做法：`git fetch origin master`，`git checkout origin/master -- huikao-daily/learn huikao-daily/tools/add-questions.mjs huikao-daily/tools/m17-new-questions.json`，`node huikao-daily/tools/add-questions.mjs huikao-daily/tools/m17-new-questions.json`，再進 `huikao-worker` 執行 `npx wrangler@latest deploy`。
 - 每日練裡還沒有連到教學的按鈕（正式網站的 index.html 只在使用者電腦上）。
+
+## 自然科（生物、理化）（2026-10-20）
+
+- 使用者要加生物和理化。題目在 `tools/science-questions.json`（id：生物 B01～B12、理化 P01～P18，subject `science`，area `生物`／`理化`），由 `tools/science/science-workflow.js` 產生：每 3 個單元一位作者 → 盲解＋自然科老師審＋學生視角審解析 → 修改 → 再盲解，答案不一致或太簡單的丟掉，少於 5 題的單元補出。
+- 正式網站的頁面要加「自然」科：`tools/live-patches/patch-science.mjs`（或 `science-subject.patch`），是照 2026-10-20 的正式網站頁面寫的，在本機用真的題庫測過（`tools/live-patches/test-science.mjs`）。repo 的 `index.html` 沒有加（它不是正式網站在用的版本）。
 
 ## 每日提醒
 
-- 帳號裡有一個 Routine「會考每日練提醒」（trig_011smHeRX1jL4wWzKvMfBbwD），每天台灣時間 19:52 推播。
-- 它目前讀的是 **claude.ai Artifact 的 db**，但使用者改用 daily.happygoody.net，那邊的紀錄要用他的「同步碼」透過 `POST https://daily.happygoody.net/api/ {code, op:'load'}` 才讀得到。
-- 待辦：拿到使用者設定頁的同步碼後，用 update_trigger 把提醒的 prompt 改成讀 API（資料格式見 `huikao-worker/src/index.js` 註解）。
+- 帳號裡有一個 Routine「會考每日練提醒」（trig_011smHeRX1jL4wWzKvMfBbwD），2026-10-20 起每天台灣時間 20:52 推播：不讀紀錄，只寫離會考天數、今天記得寫、依星期幾的小建議，連到 daily.happygoody.net。
+- Google 日曆（goody1000917@gmail.com 主日曆）有每天 19:30 的「寫會考每日練」活動（彈出通知，到 2027-05-14），這是第一次提醒。
+- 推播看不到作答紀錄。若使用者願意給同步碼，可以改成用 `POST https://daily.happygoody.net/api/ {code, op:'load'}` 讀當天有沒有寫（資料格式見 `huikao-worker/src/index.js` 註解）。
 
 ## 排程規則（別改壞）
 
