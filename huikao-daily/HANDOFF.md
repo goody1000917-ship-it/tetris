@@ -39,7 +39,7 @@ Worker 本身的測試：`cd test && npm install && node huikao-worker.test.mjs`
 
 ## 自然科（生物、理化）（2026-10-20）
 
-- 使用者要加生物和理化。題目在 `tools/science-questions.json`（id：生物 B01～B12、理化 P01～P18，subject `science`，area `生物`／`理化`），由 `tools/science/science-workflow.js` 產生：每 3 個單元一位作者 → 盲解＋自然科老師審＋學生視角審解析 → 修改 → 再盲解，答案不一致或太簡單的丟掉，少於 5 題的單元補出。
+- 使用者要加生物和理化。題目在 `tools/science-questions.json`：229 題（生物 92、理化 137，每單元 6～8 題；id 生物 B01～B12、理化 P01～P18，subject `science`，area `生物`／`理化`）。由 `tools/science/science-workflow.js` 產生：每 3 個單元一位作者 → 盲解＋自然科老師審＋學生視角審解析 → 修改 → 再盲解，答案不一致或太簡單的丟掉，少於 5 題的單元補出。之後整份再總審（`qa-science` 流程：每組單元一位專挑答案錯的審查員、每科一位查事實與課綱、看每張圖），修改後再盲解；帶圖的原始資料在 `tools/science/science-source.json`（`build-science.mjs`、`apply-qa-science.mjs` 從它產生題庫）。
 - 正式網站的頁面要加「自然」科：`tools/live-patches/patch-science.mjs`（或 `science-subject.patch`），是照 2026-10-20 的正式網站頁面寫的，在本機用真的題庫測過（`tools/live-patches/test-science.mjs`）。repo 的 `index.html` 沒有加（它不是正式網站在用的版本）。
 
 ## 每日提醒

@@ -38,6 +38,8 @@ npx wrangler@latest deploy                        # 綁到 daily.happygoody.net�
 - `tools/qbank-workflow.js`：出題與盲解驗證的 Workflow 腳本。
 - `tools/build-bank.py`：把各 Workflow 的結果合併成 `questions.json`，並把正確答案的 ABCD 位置打散平均。
 - `tools/variants-workflow.js`：替身題的 Workflow（每題原題出 2 題同觀念、換數字或換材料的替身，一樣盲解驗證）；`tools/merge-variants.py` 把結果併進 `questions.json`（`variant_of` 指向原題）。
+- `tools/science-questions.json`：自然（生物、理化）229 題，給正式網站用（正式網站要先套 `tools/live-patches/` 的修補才有「自然」科）。產生與檢查流程在 `tools/science/`。
+- `tools/pc-steps.md`：給連電腦的 Claude 對話的部署步驟（只拿新檔案，不 pull）。
 - `tools/add-questions.mjs`：把新題目加進 `questions.json`，已經有的 id 不動（`node huikao-daily/tools/add-questions.mjs <檔案>`）。
 - `tools/test-logic.js`：遺忘曲線排程與每日選題邏輯的單元測試（`node tools/test-logic.js`）。
 - `../huikao-worker/`：同步 API。測試：`cd test && npm install && node huikao-worker.test.mjs`，端到端：`node huikao-e2e.mjs`。
