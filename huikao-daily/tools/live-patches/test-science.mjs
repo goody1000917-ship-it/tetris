@@ -35,8 +35,18 @@ for (let i = 0; i < 25 && !sawChip; i++) {
   if (await next.count()) { await next.first().click(); await page.waitForTimeout(80); }
 }
 ok(sawChip, 'a science question shows its 生物/理化 chip');
-const tableOk = await page.evaluate(() => !!document.querySelector('#view .rt-table') || !document.querySelector('#view .chip.science'));
-ok(tableOk, 'science stem table renders as a table');
+// every science stem written with 「｜」 rows renders as a table, and no other stem turns into one
+const tables = await page.evaluate(() => {
+  var bad = [], n = 0;
+  S.bank.filter(function (q) { return q.subject === 'science'; }).forEach(function (q) {
+    var hasRows = q.stem.split('\n').filter(function (l) { return l.indexOf('｜') >= 0; }).length >= 2;
+    var html = richText(q.stem), isTable = html.indexOf('rt-table') >= 0;
+    if (hasRows) n++;
+    if (hasRows !== isTable) bad.push(q.id);
+  });
+  return { n: n, bad: bad };
+});
+ok(tables.bad.length === 0, 'science tables render (' + tables.n + ' stems with tables); mismatches: ' + tables.bad.join(','));
 // subject practice
 await page.evaluate(() => { startSubject('science'); });
 await page.waitForTimeout(200);
@@ -60,7 +70,7 @@ await page.fill('#scienceNew', '5'); await page.dispatchEvent('#scienceNew', 'in
 ok(/自然 5/.test(await page.locator('#newHint').innerText()), 'hint updates live');
 await page.locator('[data-act=save-settings]').click(); await page.waitForTimeout(150);
 ok(await page.evaluate(() => S.settings.scienceNew) === 5, 'scienceNew saved');
-ok(/自然 12 題/.test(await page.locator('#view').innerText()), 'bank count shows 自然 12 題');
+ok(/自然 \d+ 題/.test(await page.locator('#view').innerText()), 'bank count shows 自然');
 // wrong-answer notebook filter
 await page.evaluate(() => { S.tab = 'wrong'; render(); });
 await page.waitForTimeout(150);

@@ -18,7 +18,7 @@
    ```
    node huikao-daily/tools/live-patches/patch-science.mjs huikao-daily/index.html
    ```
-   它一次改 25 個地方（科目清單、每日選題、再加練、科目按鈕、進度頁、錯題本篩選、設定頁）。如果這台電腦的 `index.html` 在 2026-10-20 之後又改過、某一段對不上，它會停下來並印出是哪一段，什麼都不寫入；這時對照 `huikao-daily/tools/live-patches/science-subject.patch`（同樣的修改，diff 格式）手動改那一段，再重跑。已經加過會自動跳過。
+   它一次改 26 個地方（科目清單、每日選題、再加練、科目按鈕、進度頁、錯題本篩選、設定頁，以及表格裡的數字不從中間斷行）。如果這台電腦的 `index.html` 在 2026-10-20 之後又改過、某一段對不上，它會停下來並印出是哪一段，什麼都不寫入；這時對照 `huikao-daily/tools/live-patches/science-subject.patch`（同樣的修改，diff 格式）手動改那一段，再重跑。已經加過會自動跳過。
 4. 加題目（已經存在的 id 會跳過，重跑沒關係）：
    ```
    node huikao-daily/tools/add-questions.mjs huikao-daily/tools/m17-new-questions.json

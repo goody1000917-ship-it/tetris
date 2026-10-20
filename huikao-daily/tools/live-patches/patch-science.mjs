@@ -23,6 +23,11 @@ const EDITS = [
   1
  ],
  [
+  ".rt-table th,.rt-table td{border:1px solid var(--line);padding:6px 8px;text-align:center;vertical-align:middle;word-break:break-word}",
+  ".rt-table th,.rt-table td{border:1px solid var(--line);padding:6px 8px;text-align:center;vertical-align:middle;word-break:normal;overflow-wrap:break-word}",
+  1
+ ],
+ [
   "englishNew: 3, hardBias: false };",
   "englishNew: 3, scienceNew: 3, hardBias: false };",
   1

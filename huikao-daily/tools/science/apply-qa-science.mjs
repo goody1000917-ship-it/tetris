@@ -1,17 +1,17 @@
 // Applies the science QA workflow's fixes to the audit file and writes the final bank entries.
-// usage: node apply-qa-science.mjs <audit.json> <qa task output> <out.json>
+// usage: node apply-qa-science.mjs <audit.json> <out.json> <qa task outputs...>
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 const here = path.dirname(fileURLToPath(import.meta.url));
-const [auditFile, qaFile, out] = process.argv.slice(2);
+const [auditFile, out, ...qaFiles] = process.argv.slice(2);
 const html = fs.readFileSync(path.join(here, '..', 'lesson', 'similar.src.html'), 'utf8');
 const dgRender = new Function(html.slice(html.indexOf('/*@dg-start*/'), html.indexOf('/*@dg-end*/')) + '\nreturn dgRender;')();
 const audit = JSON.parse(fs.readFileSync(auditFile, 'utf8'));
-const qa = JSON.parse(fs.readFileSync(qaFile, 'utf8')).result;
+const fixes = qaFiles.flatMap(f => JSON.parse(fs.readFileSync(f, 'utf8')).result.fixes);
 const byId = new Map(audit.map(q => [q.id, q]));
 let changed = 0, dropped = [];
-for (const f of qa.fixes) {
+for (const f of fixes) {
   if (f.error || f.kept) { console.log('not applied', f.unit, f.error || 'kept as is'); continue; }
   for (const q of f.questions) {
     const old = byId.get(q.id); if (!old) continue;
