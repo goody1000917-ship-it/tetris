@@ -42,6 +42,12 @@ Worker 本身的測試：`cd test && npm install && node huikao-worker.test.mjs`
 - 使用者要加生物和理化。題目在 `tools/science-questions.json`：229 題（生物 92、理化 137，每單元 6～8 題；id 生物 B01～B12、理化 P01～P18，subject `science`，area `生物`／`理化`）。由 `tools/science/science-workflow.js` 產生：每 3 個單元一位作者 → 盲解＋自然科老師審＋學生視角審解析 → 修改 → 再盲解，答案不一致或太簡單的丟掉，少於 5 題的單元補出。之後整份再總審（`qa-science` 流程：每組單元一位專挑答案錯的審查員、每科一位查事實與課綱、看每張圖），修改後再盲解；帶圖的原始資料在 `tools/science/science-source.json`（`build-science.mjs`、`apply-qa-science.mjs` 從它產生題庫）。
 - 正式網站的頁面要加「自然」科：`tools/live-patches/patch-science.mjs`（或 `science-subject.patch`），是照 2026-10-20 的正式網站頁面寫的，在本機用真的題庫測過（`tools/live-patches/test-science.mjs`）。repo 的 `index.html` 沒有加（它不是正式網站在用的版本）。
 
+## 生殖錯題講解（2026-10-23）
+
+- 使用者傳了生物第 7 回複習考（第 6 單元「生殖」，54 分）的照片，說「我不會我好爛」。做了一頁錯題講解：`huikao-daily/learn/repro.html`（claude.ai Artifact：https://claude.ai/artifact/UuyxM3cJHuvNhrF2tWdAid ）。錯的 16 題分成 4 節（染色體的對／條與三種過程、有性還是無性、開花植物、動物的受精與發育）；每題照考卷原樣顯示，紅色是他選的、綠色是正確答案，附「怎麼想」、四個選項各錯在哪、一句話記住，可以「遮住答案，再做一次」。另有染色體小工具（果蠅／豌豆／人 × 細胞分裂／減數分裂／受精）、12 組新練習題和 10 題型的「再考一次」。進度存在瀏覽器。
+- 題目、選項、正確答案、他選的答案是從照片抄的（`tools/bio-lesson/bio-workflow.js` 的 `MISTAKES`），盲解者 16 題都和老師的答案一致。第 2 題他寫了 (A)、(B) 兩個。第 32 題的「丁」看不出是卵白還是卵殼，講解寫成「卵白和卵殼那一帶」。
+- 流程、原始檔、修正紀錄（`patches.json`）與測試在 `huikao-daily/tools/bio-lesson/`。上正式網站跟著 `tools/pc-steps.md` 的 `huikao-daily/learn` 一起，不用另外的步驟。
+
 ## 每日提醒
 
 - 帳號裡有一個 Routine「會考每日練提醒」（trig_011smHeRX1jL4wWzKvMfBbwD），2026-10-20 起每天台灣時間 20:52 推播：不讀紀錄，只寫離會考天數、今天記得寫、依星期幾的小建議，連到 daily.happygoody.net。

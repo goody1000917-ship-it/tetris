@@ -1,0 +1,39 @@
+[
+ {
+  "old": "不開花的植物就看它長種子（松樹、柏樹，有性）還是長孢子（蕨類，無性）。",
+  "new": "不開花的植物也一樣：松樹、柏樹結種子，有經過受精，是有性生殖；孢子繁殖不用受精，是無性生殖。",
+  "why": "ferns also reproduce sexually (g3 says their sperm swim in water); classify the process, not the plant"
+ },
+ {
+  "old": "丁指著蛋黃外面那一圈透明的部分。",
+  "new": "丁的線指到蛋的外圈（卵白和卵殼那一帶）。",
+  "why": "on the test photo the 丁 leader line ends at the egg's outer edge; it may mean 卵白 or 卵殼"
+ },
+ {
+  "old": "先對照圖：甲是胚盤、乙是卵黃、丙是繫帶、丁是卵白。",
+  "new": "先對照圖：甲是胚盤、乙是卵黃、丙是繫帶；丁的線指到蛋的外圈，是卵白和卵殼那一帶。",
+  "why": "same"
+ },
+ {
+  "old": "丙繫帶、丁卵白是在輸卵管包上去的，先刪掉。",
+  "new": "丙繫帶、丁（卵白、卵殼）都是在輸卵管包上去的，先刪掉。",
+  "why": "same"
+ },
+ {
+  "old": "丁是卵白，在輸卵管形成，提供水分、少量養分和保護；它不是卵巢產生的，也不是主要的養分來源。",
+  "new": "丁指的是蛋的外圈（卵白和卵殼那一帶），都是在輸卵管才包上去的，不是卵巢產生的；卵白雖然能提供水分和少量養分，但不是主要的養分來源。",
+  "why": "same"
+ },
+ {
+  "insert": {
+   "sec": "g2",
+   "before": 14
+  },
+  "expect": "demo",
+  "block": {
+   "type": "p",
+   "text": "想自己看看「每對挑一條」嗎？下面的小工具已經切到「減數分裂」，一直按「下一步」：最後 4 個細胞裡，藍黃的組合不只一種。再按「受精」，看精子和卵怎麼合成新的一對一對。"
+  },
+  "why": "g2 ends with a demo that has no instruction"
+ }
+]

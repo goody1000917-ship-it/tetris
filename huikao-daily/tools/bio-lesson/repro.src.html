@@ -1,0 +1,632 @@
+<title>生殖錯題講解</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=LXGW+WenKai+TC:wght@400;700&display=swap">
+<style>
+/* Layout: one 680px reading column drawn like a squared workbook (方格紙): sticky header with the chapter name
+   and overall progress, a strip of section chips, then the section itself. Each 考卷錯題 card shows the student's
+   own pick in red pen and the right answer in green pen, the same marks as 會考每日練. In the chromosome demo,
+   blue is a chromosome from the father and yellow one from the mother. */
+:root{
+  --bg:#F1F3F6; --paper:#FFFFFF; --ink:#1B2430; --muted:#5F6B7D; --line:#D5DBE5; --line-soft:#E7EBF1;
+  --accent:#2C58B4; --accent-ink:#FFFFFF; --accent-soft:#E4ECFA;
+  --hl:#C98A00; --hl-soft:#FBF0D6;
+  --ok:#15744A; --ok-soft:#E1F3E9; --bad:#B0321F; --bad-soft:#FBE6E2;
+  --grid:rgba(44,88,180,.07); --shadow:0 1px 2px rgba(27,36,48,.06),0 8px 24px rgba(27,36,48,.06);
+  --font-body:"Noto Sans TC",system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;
+  --font-display:"LXGW WenKai TC","Noto Sans TC","PingFang TC","Microsoft JhengHei",serif;
+  --radius:14px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#11161F; --paper:#1A2130; --ink:#E9EDF3; --muted:#9BA6B9; --line:#2D3748; --line-soft:#232C3B;
+    --accent:#8AADF2; --accent-ink:#0E1626; --accent-soft:#243655;
+    --hl:#E3B55B; --hl-soft:#3A2D14;
+    --ok:#5CD095; --ok-soft:#17311F; --bad:#F39183; --bad-soft:#3B201B;
+    --grid:rgba(138,173,242,.09); --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11161F; --paper:#1A2130; --ink:#E9EDF3; --muted:#9BA6B9; --line:#2D3748; --line-soft:#232C3B;
+  --accent:#8AADF2; --accent-ink:#0E1626; --accent-soft:#243655;
+  --hl:#E3B55B; --hl-soft:#3A2D14;
+  --ok:#5CD095; --ok-soft:#17311F; --bad:#F39183; --bad-soft:#3B201B;
+  --grid:rgba(138,173,242,.09); --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.7;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 calc(48px + env(safe-area-inset-bottom,0px));-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+a{color:var(--accent)}
+button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.wrap{max-width:680px;margin:0 auto;min-width:0}
+.hdr{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:12px 8px;border-bottom:1px solid var(--line-soft);display:grid;gap:6px}
+.hdr .top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;min-width:0}
+.hdr h1{font-family:var(--font-display);font-size:24px;line-height:1.15;margin:0;letter-spacing:.02em}
+.hdr h1 a{color:inherit;text-decoration:none}
+.hdr .sub{font-size:12px;color:var(--muted);letter-spacing:.06em}
+.hdr .done{font-size:13px;color:var(--muted);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.hdr .done b{font-family:var(--font-display);font-size:20px;color:var(--ink)}
+.bar{height:5px;border-radius:999px;background:var(--line-soft);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:999px;transition:width .25s ease}
+.strip{display:flex;gap:6px;overflow-x:auto;padding-block:8px 2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.strip::-webkit-scrollbar{display:none}
+.strip a{flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;font-size:13px;line-height:1;padding:7px 10px;border-radius:999px;border:1px solid var(--line);background:var(--paper);color:var(--muted);text-decoration:none;white-space:nowrap}
+.strip a.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.strip a.ok:not(.on){color:var(--ok);border-color:var(--ok)}
+main{padding-block:16px;display:grid;gap:14px;min-width:0}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;min-width:0}
+.sheet{background-color:var(--paper);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:22px 22px;background-position:-1px -1px}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.between{justify-content:space-between}
+.muted{color:var(--muted)}
+.small{font-size:13px;line-height:1.6}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:42px;padding:8px 16px;border-radius:999px;border:1px solid var(--line);background:var(--paper);font-weight:500;text-decoration:none;color:var(--ink)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.mini{min-height:34px;padding:5px 12px;font-size:14px}
+.btn[disabled]{opacity:.45;cursor:default}
+.tag{display:inline-flex;align-items:center;font-size:12px;font-weight:700;letter-spacing:.08em;padding:3px 8px;border-radius:6px;background:var(--accent-soft);color:var(--accent)}
+.tag.hl{background:var(--hl-soft);color:var(--hl)}
+.tag.bad{background:var(--bad-soft);color:var(--bad)}
+.tag.ok{background:var(--ok-soft);color:var(--ok)}
+/* rich text */
+.fr{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;line-height:1.2;margin:0 .15em;font-size:.95em}
+.fr>span{padding:0 .15em}
+.fr>span+span{border-top:1.5px solid currentColor}
+b,strong{font-weight:700}
+/* home */
+.hero h2{font-family:var(--font-display);font-size:26px;line-height:1.25;margin:0 0 6px;text-wrap:balance}
+.hero p{margin:0 0 12px}
+.toc{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.toc a{display:grid;grid-template-columns:44px 1fr auto;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--paper);text-decoration:none;color:var(--ink);min-width:0}
+.toc .n{font-family:var(--font-display);font-size:18px;color:var(--accent);text-align:center;line-height:1}
+.toc .t{min-width:0}
+.toc .t small{display:block;color:var(--muted);font-size:13px;margin-top:2px}
+.toc .st{font-size:13px;font-weight:700;white-space:nowrap}
+.toc .st.ok{color:var(--ok)}
+.toc .st.go{color:var(--hl)}
+/* section */
+.sec{display:grid;gap:14px;min-width:0}
+.sec-h .eyebrow{font-size:12px;letter-spacing:.1em;color:var(--muted)}
+.sec-h h2{font-family:var(--font-display);font-size:24px;line-height:1.3;margin:2px 0 4px;text-wrap:balance}
+.lp{margin:0;font-size:17px;line-height:1.85;text-wrap:pretty;word-break:break-word}
+.key{border:1.5px solid var(--accent);border-radius:12px;background:var(--accent-soft);padding:12px 14px;min-width:0}
+.key .kt{font-size:12px;font-weight:700;letter-spacing:.1em;color:var(--accent);margin-bottom:4px}
+.key ul{margin:0;padding-left:1.1em;display:grid;gap:4px}
+.key li{font-size:17px;line-height:1.75;word-break:break-word}
+.ex{display:grid;gap:8px}
+.ex .stem,.chk .stem{font-size:17px;line-height:1.8;word-break:break-word;margin:0;text-wrap:pretty}
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:6px;counter-reset:st}
+.steps li{position:relative;padding:8px 10px 8px 40px;border-radius:10px;background:var(--bg);font-size:16px;line-height:1.75;word-break:break-word;counter-increment:st}
+.steps li::before{content:counter(st);position:absolute;left:10px;top:8px;width:22px;height:22px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-size:12px;font-weight:700;display:grid;place-items:center;line-height:1}
+.final{padding:10px 12px;border-radius:10px;border:1.5px solid var(--ok);background:var(--ok-soft);font-weight:700;color:var(--ok)}
+.trap{display:grid;gap:6px;padding:12px 14px;border-radius:12px;border:1.5px dashed var(--bad);background:var(--paper)}
+.trap .w{color:var(--bad);word-break:break-word}
+.trap .w b,.trap .r b{font-family:var(--font-display);margin-right:4px}
+.trap .r{color:var(--ok);word-break:break-word}
+.trap .why{font-size:15px;color:var(--muted);word-break:break-word}
+details.why{border:1px solid var(--line);border-radius:12px;background:var(--paper);padding:0 14px}
+details.why summary{cursor:pointer;padding:12px 0;font-weight:700;color:var(--accent);list-style:none}
+details.why summary::-webkit-details-marker{display:none}
+details.why summary::before{content:"＋ "}
+details.why[open] summary::before{content:"－ "}
+details.why .body{display:grid;gap:8px;padding-bottom:14px}
+details.why p,details.why .pl{margin:0;line-height:1.8;word-break:break-word}
+.opts{display:grid;gap:8px;margin-top:4px}
+.opt{display:flex;align-items:flex-start;gap:10px;width:100%;text-align:left;padding:11px 12px;border:1.5px solid var(--line);border-radius:12px;background:var(--paper);font-size:16px;line-height:1.6;min-height:48px}
+.opt .k{flex:0 0 auto;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
+.opt .v{min-width:0;word-break:break-word}
+.opt:not([disabled]):hover{border-color:var(--accent)}
+.opt.ok{border-color:var(--ok);background:var(--ok-soft)}
+.opt.ok .k{color:var(--ok)}
+.opt.bad{border-color:var(--bad);background:var(--bad-soft)}
+.opt.bad .k{color:var(--bad)}
+.opt[disabled]{cursor:default}
+.fb{padding:10px 12px;border-radius:10px;font-size:15px;line-height:1.75;word-break:break-word}
+.fb.ok{background:var(--ok-soft);color:var(--ok)}
+.fb.bad{background:var(--bad-soft);color:var(--bad)}
+.fb.hint{background:var(--hl-soft);color:var(--ink)}
+.fb.hint b{color:var(--hl)}
+.sol{display:grid;gap:4px;padding:10px 12px;border-radius:10px;background:var(--bg)}
+.sol p{margin:0;line-height:1.8;word-break:break-word}
+.chk{display:grid;gap:10px}
+.pn{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:6px}
+/* demos */
+.demo{display:grid;gap:10px}
+.demo .ctl{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.demo input[type=range]{flex:1;min-width:160px;accent-color:var(--accent);height:32px}
+.demo .seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;flex-wrap:wrap}
+.demo .seg button{padding:7px 12px;font-size:14px;min-height:36px}
+.demo .seg button.on{background:var(--accent);color:var(--accent-ink)}
+.rt{display:grid;gap:6px}
+.rt .r{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:8px 10px;border-radius:10px;background:var(--bg);font-variant-numeric:tabular-nums;font-size:15px}
+.rt .r .eq{font-weight:700;white-space:nowrap}
+.rt .r.ok .eq{color:var(--ok)}
+.rt .r.bad .eq{color:var(--bad)}
+.rt .r .x{min-width:0;word-break:break-word}
+.demo svg{display:block;width:100%;height:auto}
+.demo .cap{font-size:15px;line-height:1.75;padding:10px 12px;border-radius:10px;background:var(--bg);word-break:break-word}
+.demo .nav{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.demo .ctl{flex-direction:column;align-items:flex-start;gap:4px}
+.demo .lbl{font-size:12px;letter-spacing:.08em;color:var(--muted)}
+.demo .seg button{padding:7px 11px}
+.demo .rt .r{grid-template-columns:auto 1fr}
+.demo .rt .r .eq{white-space:normal;text-align:right}
+.cm-cell{fill:var(--paper);stroke:var(--muted);stroke-width:1.4}
+.cm-egg{fill:var(--hl-soft);stroke:var(--hl);stroke-width:1.4}
+.cm-sp{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.4}
+.cm-tail{fill:none;stroke:var(--accent);stroke-width:1.6;stroke-linecap:round}
+.cm-d{fill:#3E74D6}.cm-m{fill:#E0A21B}
+.cm-cen{fill:var(--paper);stroke:var(--ink);stroke-width:.8}
+.cm-t{fill:var(--ink);font-size:12px;font-family:var(--font-body);font-weight:700}
+.cm-s{fill:var(--muted);font-size:11px;font-family:var(--font-body)}
+.cm-arrow{stroke:var(--muted);stroke-width:1.4;fill:none}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.legend i{display:inline-block;width:8px;height:18px;border-radius:4px;vertical-align:middle;margin-right:5px}
+/* tables inside question text */
+.tbw{overflow-x:auto;margin:4px 0;max-width:100%}
+table.tb{border-collapse:collapse;font-size:15px;line-height:1.5;min-width:100%}
+table.tb th,table.tb td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top;word-break:normal;overflow-wrap:break-word}
+table.tb th{background:var(--bg);font-weight:700}
+/* 考卷錯題 */
+.mis{display:grid;gap:10px;border-left:4px solid var(--bad)}
+.mis.okd{border-left-color:var(--ok)}
+.mis .opt{cursor:default}
+.mis .mk{flex:0 0 auto;margin-left:auto;font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.mis .opt.ok .mk{background:var(--ok);color:var(--paper)}
+.mis .opt.bad .mk{background:var(--bad);color:var(--paper)}
+.mis .sum{font-size:15px}
+.mis .kt{font-size:12px;font-weight:700;letter-spacing:.1em;color:var(--accent)}
+.ow{display:grid;gap:6px;margin:0;padding:0;list-style:none}
+.ow li{display:flex;gap:8px;line-height:1.75;word-break:break-word}
+.ow li b{flex:0 0 auto}
+.ow li.ok b{color:var(--ok)}.ow li.bad b{color:var(--bad)}
+.photo{margin:0;display:grid;gap:4px;justify-items:center}
+.photo img{display:block;max-width:min(100%,300px);height:auto;border-radius:10px;border:1px solid var(--line)}
+.photo figcaption{font-size:13px;color:var(--muted);text-align:center}
+.rem{border:1.5px solid var(--hl);border-radius:12px;background:var(--hl-soft);padding:10px 14px}
+.rem .kt{color:var(--hl)}
+.key .tbw{margin:6px 0;background:var(--paper);border-radius:8px}
+.rem p{margin:2px 0 0;font-size:17px;line-height:1.75;font-weight:500;word-break:break-word}
+.score{font-family:var(--font-display);font-size:44px;line-height:1;color:var(--accent)}
+.empty{padding:28px 16px;text-align:center;color:var(--muted)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+<div class="wrap">
+  <header class="hdr">
+    <div class="top">
+      <div><h1><a href="#">生殖：把錯題弄懂</a></h1><div class="sub">自然・生物第 6 單元・第 7 回複習考</div></div>
+      <div class="done"><b id="doneN">0</b> / <span id="doneT">5</span> 節完成</div>
+    </div>
+    <div class="bar" aria-hidden="true"><i id="doneBar" style="width:0%"></i></div>
+    <nav class="strip" id="strip" aria-label="節次"></nav>
+  </header>
+  <main id="view"></main>
+</div>
+<script type="application/json" id="lesson-data">__LESSON_DATA__</script>
+<script>
+(function () {
+'use strict';
+var DATA = { sections: [], exam: [] };
+try { DATA = JSON.parse(document.getElementById('lesson-data').textContent); } catch (e) { if (window.console) console.warn('lesson data', e); }
+var SECS = DATA.sections || [], EXAM = DATA.exam || [], FIGS = DATA.figs || {};
+var DAILY = 'https://daily.happygoody.net/';
+var KEY = 'repro-lesson-v1';
+var ST = (function () { try { var s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s === 'object') return s; } catch (e) {} return {}; })();
+ST.checks = ST.checks || {}; ST.mis = ST.mis || {}; ST.best = ST.best == null ? null : ST.best;
+function save() { try { localStorage.setItem(KEY, JSON.stringify(ST)); } catch (e) {} }
+var MEM = { ex: {} };
+var view = document.getElementById('view');
+
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+// [[a/b]] -> stacked fraction, **x** -> bold, newline -> <br>; a run of lines containing ｜ is a table (first line = header)
+function inline(s) {
+  var h = esc(s);
+  h = h.replace(/\[\[([^\[\]\/]+?)\/([^\[\]]+?)\]\]/g, function (m, a, b) { return '<span class="fr"><span>' + a.trim() + '</span><span>' + b.trim() + '</span></span>'; });
+  return h.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+}
+function rich(s) {
+  var lines = String(s == null ? '' : s).split('\n'), out = [], i = 0;
+  while (i < lines.length) {
+    if (lines[i].indexOf('｜') >= 0 && i + 1 < lines.length && lines[i + 1].indexOf('｜') >= 0) {
+      var rows = [];
+      while (i < lines.length && lines[i].indexOf('｜') >= 0) rows.push(lines[i++].split('｜'));
+      out.push({ t: '<div class="tbw"><table class="tb">' + rows.map(function (r, k) { return '<tr>' + r.map(function (c) { return (k ? '<td>' : '<th>') + inline(c.trim()) + (k ? '</td>' : '</th>'); }).join('') + '</tr>'; }).join('') + '</table></div>', blk: true });
+    } else out.push({ t: inline(lines[i++]) });
+  }
+  return out.map(function (o, k) { return o.t + (k < out.length - 1 && !o.blk && !out[k + 1].blk ? '<br>' : ''); }).join('');
+}
+function hashStr(s) { var h = 2166136261; for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function perm(seed) { var r = mulberry32(hashStr(seed)), a = [0, 1, 2, 3]; for (var i = 3; i > 0; i--) { var j = Math.floor(r() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+function fmt(x) { var s = (Math.round(x * 100) / 100).toFixed(2); return s.replace(/\.?0+$/, ''); }
+
+
+
+function photo(name, cap) { return FIGS[name] ? '<figure class="photo"><img src="' + FIGS[name] + '" alt="' + esc(cap || '考卷上的圖') + '"><figcaption>' + esc(cap || '考卷上的圖') + '</figcaption></figure>' : ''; }
+
+// ---------- progress ----------
+function checksOf(sec) { return (sec.blocks || []).filter(function (b) { return b.type === 'check'; }); }
+function misOf(sec) { return (sec.blocks || []).filter(function (b) { return b.type === 'mistake'; }); }
+function misState(id) { return ST.mis[id] || (ST.mis[id] = { ok: false, redo: false, picks: [] }); }
+function secState(sec) {
+  var cs = checksOf(sec), ms = misOf(sec);
+  var done = cs.filter(function (b) { return ST.checks[b.id] && ST.checks[b.id].done; }).length;
+  var mdone = ms.filter(function (b) { return ST.mis[b.id] && ST.mis[b.id].ok; }).length;
+  var all = cs.length + ms.length, n = done + mdone;
+  return { done: done, total: cs.length, mdone: mdone, mtotal: ms.length, complete: all > 0 && n === all, started: n > 0 };
+}
+function examDone() { return ST.best != null; }
+function totals() { var n = SECS.filter(function (s) { return secState(s).complete; }).length + (examDone() ? 1 : 0); return { n: n, t: SECS.length + 1 }; }
+function secLabel(i) { return '第 ' + (i + 1) + ' 節'; }
+function shortLabel(i) { return String(i + 1); }
+
+function renderChrome(cur) {
+  var t = totals();
+  document.getElementById('doneN').textContent = t.n;
+  document.getElementById('doneT').textContent = t.t;
+  document.getElementById('doneBar').style.width = Math.round(t.n / t.t * 100) + '%';
+  var html = '<a href="#"' + (cur === '' ? ' class="on"' : '') + '>目錄</a>';
+  SECS.forEach(function (s, i) { var st = secState(s); html += '<a href="#' + s.id + '" class="' + (cur === s.id ? 'on ' : '') + (st.complete ? 'ok' : '') + '">' + (st.complete ? '✓ ' : '') + shortLabel(i) + '</a>'; });
+  html += '<a href="#exam" class="' + (cur === 'exam' ? 'on ' : '') + (examDone() ? 'ok' : '') + '">' + (examDone() ? '✓ ' : '') + '再考一次</a>';
+  var strip = document.getElementById('strip');
+  strip.innerHTML = html;
+  var on = strip.querySelector('.on'); if (on && on.scrollIntoView) { try { on.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (e) {} }
+}
+
+// ---------- home ----------
+function renderHome() {
+  var next = SECS.filter(function (s) { return !secState(s).complete; })[0];
+  var started = SECS.some(function (s) { return secState(s).started; });
+  var nm = SECS.reduce(function (t, s) { return t + misOf(s).length; }, 0);
+  var html = '<section class="card sheet hero"><h2>你錯的 ' + nm + ' 題，其實只是 ' + SECS.length + ' 個觀念</h2>' +
+    '<p>54 分不代表你很爛，只代表這幾個觀念還沒有人好好講給你聽。把下面 ' + SECS.length + ' 節看完，這些題目你都會。</p>' +
+    '<p class="small muted">每一節先講觀念，再一題一題看你考卷上錯的題目：紅色是你當時選的，綠色是正確答案，下面寫著怎麼想。看懂就按「我懂了」；也可以按「遮住答案，再做一次」自己重做。最後有「你試試」新題目。</p>' +
+    '<div class="row">' + (next ? '<a class="btn primary" href="#' + next.id + '">' + (started ? '繼續：' : '從這裡開始：') + esc(next.title) + '</a>' : '<a class="btn primary" href="#exam">每節都完成了，去再考一次</a>') +
+    '<a class="btn" href="#exam">直接再考一次</a></div></section>';
+  html += '<ol class="toc">';
+  SECS.forEach(function (s, i) {
+    var st = secState(s);
+    html += '<li><a href="#' + s.id + '"><span class="n">' + shortLabel(i) + '</span><span class="t">' + esc(s.title) + '<small>考卷錯題 ' + st.mdone + ' / ' + st.mtotal + '・你試試 ' + st.done + ' / ' + st.total + '</small></span><span class="st ' + (st.complete ? 'ok' : st.started ? 'go' : '') + '">' + (st.complete ? '✓ 完成' : st.started ? '進行中' : '') + '</span></a></li>';
+  });
+  html += '<li><a href="#exam"><span class="n">戰</span><span class="t">再考一次<small>' + EXAM.length + ' 題綜合題' + (ST.best != null ? '，最佳 ' + ST.best.ok + ' / ' + ST.best.n : '') + '</small></span><span class="st ' + (examDone() ? 'ok' : '') + '">' + (examDone() ? '✓ 做過' : '') + '</span></a></li></ol>';
+  html += '<p class="small muted">學完以後，到會考每日練的「設定」把自然打開，它會照遺忘曲線，隔天、三天、一週後再出生物題給你。<a href="' + DAILY + '" target="_blank" rel="noopener">打開會考每日練</a></p>';
+  view.innerHTML = html;
+}
+
+// ---------- section ----------
+function renderSection(idx) {
+  var s = SECS[idx], st = secState(s);
+  var html = '<article class="sec"><div class="sec-h"><div class="eyebrow">' + secLabel(idx) + '</div><h2>' + esc(s.title) + '</h2>' +
+    '<div class="small muted">考卷錯題看懂 <b id="secMis">' + st.mdone + '</b> / ' + st.mtotal + '・你試試做對 <b id="secDone">' + st.done + '</b> / ' + st.total + '</div></div>';
+  (s.blocks || []).forEach(function (b) { html += block(b); });
+  var prev = idx > 0 ? '<a class="btn" href="#' + SECS[idx - 1].id + '">← ' + esc(shortTitle(idx - 1)) + '</a>' : '<a class="btn" href="#">← 目錄</a>';
+  var nxt = idx < SECS.length - 1 ? '<a class="btn primary" href="#' + SECS[idx + 1].id + '">' + esc(shortTitle(idx + 1)) + ' →</a>' : '<a class="btn primary" href="#exam">再考一次 →</a>';
+  html += '<nav class="pn">' + prev + nxt + '</nav></article>';
+  view.innerHTML = html;
+  mountDemos(view);
+}
+function shortTitle(i) { var t = SECS[i].title; var c = t.indexOf('：'); return secLabel(i) + (c > 0 && c < 10 ? ' ' + t.slice(0, c) : ''); }
+
+function block(b) {
+  switch (b.type) {
+    case 'p': return '<div class="lp">' + rich(b.text) + '</div>';
+    case 'key': return '<div class="key"><div class="kt">' + esc(b.title || '重點') + '</div>' + keyLines(b.lines) + '</div>';
+    case 'mistake': return '<div class="card mis' + (misState(b.id).ok ? ' okd' : '') + '" id="mis-' + esc(b.id) + '">' + misInner(b) + '</div>';
+    case 'demo': return '<div class="card demo" data-demo="' + esc(b.name) + '" data-mode="' + esc(b.mode || '') + '"></div>';
+    case 'example': return '<div class="card ex" id="ex-' + esc(b.id) + '">' + exampleInner(b) + '</div>';
+    case 'trap': return '<div class="trap"><span class="tag bad" style="justify-self:start">常見錯誤</span><div class="w"><b>✗</b>' + rich(b.wrong) + '</div><div class="r"><b>✓</b>' + rich(b.right) + '</div>' + (b.reason ? '<div class="why">' + rich(b.reason) + '</div>' : '') + '</div>';
+    case 'why': return '<details class="why"><summary>' + esc(b.title || '想知道為什麼？') + '</summary><div class="body">' + b.lines.map(function (l) { return '<div class="pl">' + rich(l) + '</div>'; }).join('') + '</div></details>';
+    case 'check': return '<div class="card sheet chk" id="chk-' + esc(b.id) + '">' + checkInner(b) + '</div>';
+  }
+  return '';
+}
+
+// bullet lines; a run of two or more lines containing ｜ is drawn as one table
+function keyLines(lines) {
+  var html = '', i = 0, ul = [];
+  var flush = function () { if (ul.length) html += '<ul>' + ul.join('') + '</ul>'; ul = []; };
+  while (i < lines.length) {
+    if (lines[i].indexOf('｜') >= 0 && i + 1 < lines.length && lines[i + 1].indexOf('｜') >= 0) {
+      var run = []; while (i < lines.length && lines[i].indexOf('｜') >= 0) run.push(lines[i++]);
+      flush(); html += rich(run.join('\n'));
+    } else ul.push('<li>' + rich(lines[i++]) + '</li>');
+  }
+  flush();
+  return html;
+}
+function exampleInner(b) {
+  var n = MEM.ex[b.id] || 0, all = b.steps.length;
+  var html = '<div class="row between"><span class="tag">例題</span><span class="small muted">' + Math.min(n, all) + ' / ' + all + ' 步</span></div>' +
+    '<div class="stem">' + rich(b.stem) + '</div>';
+  if (n > 0) html += '<ol class="steps">' + b.steps.slice(0, n).map(function (s) { return '<li>' + rich(s) + '</li>'; }).join('') + '</ol>';
+  if (n >= all && b.final) html += '<div class="final">答：' + rich(b.final) + '</div>';
+  html += '<div class="row">' + (n < all ? '<button class="btn primary mini" data-act="step" data-id="' + esc(b.id) + '">' + (n === 0 ? '先自己想，再看第 1 步' : '下一步') + '</button>' + (n < all - 1 ? '<button class="btn mini" data-act="allsteps" data-id="' + esc(b.id) + '">全部顯示</button>' : '') : '<button class="btn mini" data-act="resetsteps" data-id="' + esc(b.id) + '">收起來，自己再做一次</button>') + '</div>';
+  return html;
+}
+
+function checkState(id) { return ST.checks[id] || (ST.checks[id] = { v: 0, picks: [], hint: 0, sol: false, done: false, tries: 0 }); }
+function findBlock(id) { for (var i = 0; i < SECS.length; i++) for (var j = 0; j < SECS[i].blocks.length; j++) if (SECS[i].blocks[j].id === id) return SECS[i].blocks[j]; return null; }
+function checkInner(b) {
+  var s = checkState(b.id), q = b.variants[s.v % b.variants.length];
+  var order = perm(q.id + '|' + s.tries), solved = s.picks.indexOf(q.answer) >= 0, last = s.picks[s.picks.length - 1];
+  var html = '<div class="row between"><span class="tag hl">你試試</span><span class="small muted">' + (s.done ? '✓ 做對過　' : '') + (b.variants.length > 1 ? '第 ' + (s.v % b.variants.length + 1) + ' / ' + b.variants.length + ' 版' : '') + '</span></div>';
+  if (b.skill) html += '<div class="small muted">練習：' + rich(b.skill) + '</div>';
+  html += '<div class="stem">' + rich(q.stem) + '</div>';
+  html += '<div class="opts" role="group" aria-label="選項">';
+  order.forEach(function (oi, k) {
+    var picked = s.picks.indexOf(oi) >= 0, cls = picked ? (oi === q.answer ? ' ok' : ' bad') : '';
+    html += '<button class="opt' + cls + '" data-act="pick" data-id="' + esc(b.id) + '" data-i="' + oi + '"' + (solved || picked ? ' disabled' : '') + '><span class="k">' + 'ABCD'[k] + '</span><span class="v">' + rich(q.options[oi]) + '</span></button>';
+  });
+  html += '</div>';
+  if (last != null) {
+    if (last === q.answer) html += '<div class="fb ok"><b>答對了！</b>' + rich(q.why[last]) + '</div>';
+    else html += '<div class="fb bad"><b>再想想。</b>' + rich(q.why[last]) + '</div>';
+  }
+  for (var h = 0; h < Math.min(s.hint, q.hints.length); h++) html += '<div class="fb hint"><b>提示 ' + (h + 1) + '：</b>' + rich(q.hints[h]) + '</div>';
+  if (s.sol || solved) html += '<details class="why"' + (s.sol ? ' open' : '') + '><summary>完整解法</summary><div class="body">' + q.solution.map(function (l) { return '<div class="pl">' + rich(l) + '</div>'; }).join('') + '</div></details>';
+  html += '<div class="row">';
+  if (!solved && s.hint < q.hints.length) html += '<button class="btn mini" data-act="hint" data-id="' + esc(b.id) + '">看提示 ' + (s.hint + 1) + '</button>';
+  if (!solved && !s.sol && s.hint >= q.hints.length) html += '<button class="btn mini" data-act="sol" data-id="' + esc(b.id) + '">看解法</button>';
+  if (b.variants.length > 1 && (solved || s.sol)) html += '<button class="btn mini primary" data-act="nextv" data-id="' + esc(b.id) + '">換一題（同觀念、換數字）</button>';
+  html += '</div>';
+  return html;
+}
+function refresh(id, kind) {
+  var el = document.getElementById((kind === 'ex' ? 'ex-' : kind === 'mis' ? 'mis-' : 'chk-') + id); if (!el) return;
+  var b = findBlock(id); if (!b) return;
+  el.innerHTML = kind === 'ex' ? exampleInner(b) : kind === 'mis' ? misInner(b) : checkInner(b);
+  if (kind === 'mis') el.classList.toggle('okd', !!misState(id).ok);
+}
+var L4 = ['(A)', '(B)', '(C)', '(D)'];
+// a test question the student got wrong: shown in the paper's own (A)-(D) order with their pick and the right answer
+function misInner(b) {
+  var s = misState(b.id), yours = b.yours || [];
+  var html = '<div class="row between"><span class="tag bad">考卷第 ' + b.qno + ' 題</span><span class="small muted">' + (s.ok ? '✓ 懂了' : '') + '</span></div>';
+  html += '<div class="stem">' + rich(b.stem) + '</div>' + (b.fig ? photo(b.fig, '考卷上的圖') : '');
+  if (s.redo) {
+    var solved = s.picks.indexOf(b.answer) >= 0, last = s.picks[s.picks.length - 1];
+    html += '<div class="opts" role="group" aria-label="選項">';
+    b.options.forEach(function (o, i) {
+      var picked = s.picks.indexOf(i) >= 0;
+      html += '<button class="opt' + (picked ? (i === b.answer ? ' ok' : ' bad') : '') + '" data-act="mis-pick" data-id="' + esc(b.id) + '" data-i="' + i + '"' + (solved || picked ? ' disabled' : '') + '><span class="k">' + L4[i] + '</span><span class="v">' + rich(o) + '</span></button>';
+    });
+    html += '</div>';
+    if (last != null) html += '<div class="fb ' + (last === b.answer ? 'ok"><b>答對了！</b>' : 'bad"><b>再想想。</b>') + rich(b.optionWhy[last]) + '</div>';
+    html += '<div class="row">' + (solved ? '<button class="btn mini primary" data-act="mis-ok" data-id="' + esc(b.id) + '">' + (s.ok ? '✓ 我懂了' : '我懂了') + '</button>' : '') + '<button class="btn mini" data-act="mis-show" data-id="' + esc(b.id) + '">看講解</button></div>';
+    return html;
+  }
+  html += '<div class="opts">';
+  b.options.forEach(function (o, i) {
+    var ok = i === b.answer, mine = yours.indexOf(i) >= 0;
+    html += '<div class="opt' + (ok ? ' ok' : mine ? ' bad' : '') + '"><span class="k">' + L4[i] + '</span><span class="v">' + rich(o) + '</span>' + (ok ? '<span class="mk">正確答案</span>' : mine ? '<span class="mk">你選的</span>' : '') + '</div>';
+  });
+  html += '</div>';
+  html += '<div class="sum muted">你選了 ' + yours.map(function (i) { return L4[i]; }).join('、') + '，正確答案是 ' + L4[b.answer] + '。</div>';
+  html += '<div class="kt">怎麼想</div><ol class="steps">' + b.think.map(function (t) { return '<li>' + rich(t) + '</li>'; }).join('') + '</ol>';
+  html += '<details class="why"><summary>四個選項各對在哪、錯在哪</summary><div class="body"><ul class="ow">' + b.optionWhy.map(function (w, i) { return '<li class="' + (i === b.answer ? 'ok' : yours.indexOf(i) >= 0 ? 'bad' : '') + '"><b>' + L4[i] + '</b><span>' + rich(w) + '</span></li>'; }).join('') + '</ul></div></details>';
+  if (b.remember) html += '<div class="rem"><div class="kt">記住這句</div><p>' + rich(b.remember) + '</p></div>';
+  html += '<div class="row"><button class="btn mini primary" data-act="mis-ok" data-id="' + esc(b.id) + '">' + (s.ok ? '✓ 我懂了' : '我懂了') + '</button><button class="btn mini" data-act="mis-redo" data-id="' + esc(b.id) + '">遮住答案，再做一次</button></div>';
+  return html;
+}
+function onPick(id, i) {
+  var b = findBlock(id); if (!b) return;
+  var s = checkState(id), q = b.variants[s.v % b.variants.length];
+  if (s.picks.indexOf(q.answer) >= 0 || s.picks.indexOf(i) >= 0) return;
+  s.picks.push(i);
+  if (i === q.answer) s.done = true;
+  save(); refresh(id, 'chk'); updateSecHeader();
+}
+function updateSecHeader() {
+  var cur = location.hash.replace('#', ''), idx = SECS.map(function (s) { return s.id; }).indexOf(cur);
+  if (idx >= 0) { var st = secState(SECS[idx]), el = document.getElementById('secDone'), em = document.getElementById('secMis'); if (el) el.textContent = st.done; if (em) em.textContent = st.mdone; }
+  renderChrome(cur);
+}
+
+// ---------- exam ----------
+function examProblem(i) { var p = EXAM[ST.exam.order[i]]; return { p: p, q: p.variants[ST.exam.round % p.variants.length] }; }
+function startExam() {
+  var round = ST.exam && ST.exam.round != null ? ST.exam.round + (ST.exam.done ? 1 : 0) : 0;
+  ST.exam = { round: round, idx: 0, ans: {}, done: false, order: EXAM.map(function (_, i) { return i; }) };
+  save(); renderExam(); window.scrollTo(0, 0);
+}
+function renderExam() {
+  var E = ST.exam, html = '';
+  if (!EXAM.length) { view.innerHTML = '<div class="card empty">題目還沒準備好。</div>'; return; }
+  if (!E) {
+    html = '<section class="card sheet hero"><h2>再考一次</h2><p>' + EXAM.length + ' 題新題目，考的都是你這次錯的觀念。每題只能選一次，選完會馬上告訴你對錯和解法。做完看分數，錯的題目會告訴你回哪一節複習。</p>' +
+      '<div class="row"><button class="btn primary" data-act="exam-start">開始</button><a class="btn" href="#">回目錄</a></div></section>';
+    view.innerHTML = html; return;
+  }
+  if (E.done) {
+    var ok = 0, wrongBySec = {};
+    E.order.forEach(function (pi, i) { var x = examProblem(i); if (E.ans[i] === x.q.answer) ok++; else (wrongBySec[x.p.section] = wrongBySec[x.p.section] || []).push(x.p.title || ''); });
+    html = '<section class="card sheet hero"><div class="small muted">這一回的成績</div><div class="score">' + ok + ' / ' + E.order.length + '</div>' +
+      '<p>' + (ok === E.order.length ? '全對！這個單元你真的會了，接下來交給每日練幫你記住。' : ok >= E.order.length * 0.7 ? '大部分都會了。下面幾節再看一次，就更穩了。' : '還有幾個地方不熟，先回去看下面幾節，再挑戰一次。') + '</p>';
+    var keys = Object.keys(wrongBySec);
+    if (keys.length) {
+      html += '<div style="display:grid;gap:6px;margin-bottom:12px">';
+      SECS.forEach(function (s, i) { if (wrongBySec[s.id]) html += '<a class="btn" style="justify-content:flex-start" href="#' + s.id + '">回' + secLabel(i) + '：' + esc(s.title) + '</a>'; });
+      html += '</div>';
+    }
+    html += '<div class="row"><button class="btn primary" data-act="exam-start">換一批題目再考一次</button><a class="btn" href="' + DAILY + '" target="_blank" rel="noopener">去會考每日練</a></div></section>';
+    view.innerHTML = html; return;
+  }
+  var i = E.idx, x = examProblem(i), q = x.q, picked = E.ans[i], order = perm(q.id + '|exam|' + E.round);
+  html += '<div class="row between small muted"><span>再考一次 第 ' + (i + 1) + ' / ' + E.order.length + ' 題</span><span>' + esc(x.p.title || '') + '</span></div>';
+  html += '<div class="bar" aria-hidden="true"><i style="width:' + Math.round(i / E.order.length * 100) + '%"></i></div>';
+  html += '<div class="card sheet chk"><div class="stem">' + rich(q.stem) + '</div>' + '<div class="opts">';
+  order.forEach(function (oi, k) {
+    var cls = picked == null ? '' : oi === q.answer ? ' ok' : oi === picked ? ' bad' : '';
+    html += '<button class="opt' + cls + '" data-act="exam-pick" data-i="' + oi + '"' + (picked != null ? ' disabled' : '') + '><span class="k">' + 'ABCD'[k] + '</span><span class="v">' + rich(q.options[oi]) + '</span></button>';
+  });
+  html += '</div>';
+  if (picked != null) {
+    html += picked === q.answer ? '<div class="fb ok"><b>答對了！</b>' + rich(q.why[picked]) + '</div>' : '<div class="fb bad"><b>這題錯了。</b>' + rich(q.why[picked]) + '</div>';
+    html += '<details class="why" open><summary>完整解法</summary><div class="body">' + q.solution.map(function (l) { return '<div class="pl">' + rich(l) + '</div>'; }).join('') + '</div></details>';
+    var si = SECS.map(function (s) { return s.id; }).indexOf(x.p.section);
+    if (picked !== q.answer && si >= 0) html += '<div class="small muted">這題用到' + secLabel(si) + '「' + esc(SECS[si].title) + '」。</div>';
+    html += '<div class="row"><button class="btn primary" data-act="exam-next">' + (i + 1 < E.order.length ? '下一題' : '看成績') + '</button></div>';
+  } else if (q.hints && q.hints.length) {
+    html += '<div class="small muted">考試沒有提示，這裡也先不給。想不出來可以先猜一個，看完解法再回去複習。</div>';
+  }
+  html += '</div>';
+  view.innerHTML = html;
+}
+
+// ---------- demos ----------
+function mountDemos(root) {
+  Array.prototype.forEach.call(root.querySelectorAll('[data-demo]'), function (el) {
+    try { if (el.getAttribute('data-demo') === 'chromo') demoChromo(el, el.getAttribute('data-mode')); } catch (e) { if (window.console) console.warn(e); el.innerHTML = '<div class="small muted">這個小工具載入失敗。</div>'; }
+  });
+}
+
+// 染色體怎麼變: one cell's chromosomes drawn as bars, pairs side by side (blue from the father, yellow from the mother).
+// 細胞分裂 keeps every pair, 減數分裂 leaves one of each pair in 4 cells, 受精 puts the pairs back together.
+function demoChromo(el, mode) {
+  var ORG = { fly: { name: '果蠅', n: 4, lens: [30, 27, 24, 9] }, pea: { name: '豌豆', n: 7, lens: [30, 28, 26, 24, 22, 20, 18] }, human: { name: '人', n: 23, lens: [] } };
+  for (var k = 0; k < 23; k++) ORG.human.lens.push(30 - k);
+  var PROC = { cell: { name: '細胞分裂', last: 4 }, meiosis: { name: '減數分裂', last: 3 }, fert: { name: '受精', last: 1 } };
+  var org = 'fly', proc = PROC[mode] ? mode : 'cell', stage = 0;
+  var W = 340, H = 200;
+  el.innerHTML = '<div class="row between"><span class="tag">動手看看</span><span class="small muted">染色體數目怎麼變</span></div>' +
+    '<div class="ctl"><span class="lbl">生物</span><div class="seg" role="group" aria-label="生物">' + ['fly', 'pea', 'human'].map(function (o) { return '<button data-org="' + o + '">' + ORG[o].name + ' ' + ORG[o].n + ' 對</button>'; }).join('') + '</div></div>' +
+    '<div class="ctl"><span class="lbl">過程</span><div class="seg" role="group" aria-label="過程">' + ['cell', 'meiosis', 'fert'].map(function (p) { return '<button data-proc="' + p + '">' + PROC[p].name + '</button>'; }).join('') + '</div></div>' +
+    '<div data-r="svg"></div>' +
+    '<div class="legend"><span><i style="background:#3E74D6"></i>來自爸爸</span><span><i style="background:#E0A21B"></i>來自媽媽</span><span>一藍一黃、一樣長＝一對</span></div>' +
+    '<div class="cap" data-r="cap" aria-live="polite"></div>' +
+    '<div class="rt" data-r="rt"></div>' +
+    '<div class="nav"><button class="btn mini" data-st="-1">← 上一步</button><button class="btn mini primary" data-st="1">下一步 →</button><button class="btn mini" data-st="0">重來</button><span class="small muted" data-r="pos"></span></div>';
+  var R = function (k) { return el.querySelector('[data-r="' + k + '"]'); };
+  var f = function (n) { return Math.round(n * 10) / 10; };
+
+  function full(dup) { var g = []; for (var i = 0; i < ORG[org].n; i++) g.push([{ k: i, c: 'd' }, { k: i, c: 'm' }]); return { groups: g, dup: dup }; }
+  function half(side, dup) { var g = []; for (var i = 0; i < ORG[org].n; i++) { var c = (i * 5 + 1) % 3 === 0 ? 'm' : 'd'; if (side === 'B') c = c === 'd' ? 'm' : 'd'; if (side === 'D') c = 'd'; if (side === 'M') c = 'm'; g.push([{ k: i, c: c }]); } return { groups: g, dup: dup }; }
+
+  function bars(box, cont) {
+    var lens = ORG[org].lens, G = cont.groups, out = '';
+    for (var bw = 9; bw >= 1.4; bw -= 0.3) {
+      var cw = cont.dup ? 2 * bw + 0.6 : bw, gi = bw * 0.45, go = bw * 1.3;
+      var gw = 0; G.forEach(function (g) { gw = Math.max(gw, g.length * cw + (g.length - 1) * gi); });
+      var cols = Math.min(G.length, Math.max(1, Math.floor((box.w + go) / (gw + go))));
+      var rows = Math.ceil(G.length / cols); cols = Math.ceil(G.length / rows);
+      var rowH = box.h / rows, maxLen = Math.min(rowH - 4, bw * 8);
+      if (maxLen < Math.max(9, bw * 2.4) && bw > 1.5) continue;
+      var gridW = cols * gw + (cols - 1) * go, x0 = box.x + (box.w - gridW) / 2;
+      var rh = Math.min(rowH, maxLen + 6), y0 = box.y + (box.h - rows * rh) / 2;
+      G.forEach(function (g, i) {
+        var col = i % cols, row = Math.floor(i / cols), w = g.length * cw + (g.length - 1) * gi;
+        var x = x0 + col * (gw + go) + (gw - w) / 2;
+        g.forEach(function (c) {
+          var L = lens[c.k] / 30 * maxLen, y = y0 + row * rh + (rh - L) / 2, rx = Math.min(bw / 2, 2.5);
+          out += '<rect x="' + f(x) + '" y="' + f(y) + '" width="' + f(bw) + '" height="' + f(L) + '" rx="' + f(rx) + '" class="cm-' + c.c + '"/>';
+          if (cont.dup) out += '<rect x="' + f(x + bw + 0.6) + '" y="' + f(y) + '" width="' + f(bw) + '" height="' + f(L) + '" rx="' + f(rx) + '" class="cm-' + c.c + '"/><circle cx="' + f(x + bw + 0.3) + '" cy="' + f(y + L / 2) + '" r="' + f(Math.max(1.3, bw * 0.42)) + '" class="cm-cen"/>';
+          x += cw + gi;
+        });
+      });
+      return out;
+    }
+    return out;
+  }
+  function cell(x, y, w, h, cont, cls, label) {
+    var s = '<ellipse cx="' + f(x + w / 2) + '" cy="' + f(y + h / 2) + '" rx="' + f(w / 2 - 2) + '" ry="' + f(h / 2 - 2) + '" class="' + (cls || 'cm-cell') + '"/>';
+    s += bars({ x: x + w * 0.17, y: y + h * 0.18, w: w * 0.66, h: h * 0.64 }, cont);
+    if (label) s += '<text x="' + f(x + w / 2) + '" y="' + f(y + h + 13) + '" text-anchor="middle" class="cm-t">' + label + '</text>';
+    return s;
+  }
+  function grid(conts) {
+    var n = conts.length, s = '';
+    if (n === 1) return cell(60, 8, 220, 184, conts[0]);
+    if (n === 2) return cell(6, 18, 160, 164, conts[0]) + cell(174, 18, 160, 164, conts[1]);
+    if (n === 4) { conts.forEach(function (c, i) { s += cell(8 + (i % 2) * 166, 4 + Math.floor(i / 2) * 98, 158, 94, c); }); return s; }
+    for (var i = 0; i < n; i++) {
+      var cx = 45 + (i % 4) * 83, cy = 52 + Math.floor(i / 4) * 96;
+      s += '<circle cx="' + cx + '" cy="' + cy + '" r="34" class="cm-cell"/><text x="' + cx + '" y="' + (cy + 2) + '" text-anchor="middle" class="cm-t">' + (2 * ORG[org].n) + ' 條</text><text x="' + cx + '" y="' + (cy + 17) + '" text-anchor="middle" class="cm-s">2n</text>';
+    }
+    return s;
+  }
+  function scene() {
+    var o = ORG[org], n = o.n, N2 = 2 * n, nm = o.name;
+    var pairs = n + ' 對＝' + N2 + ' 條';
+    if (proc === 'cell') {
+      if (stage === 0) return { svg: grid([full(false)]), cap: '這是' + nm + '的一個體細胞（身體裡一般的細胞，例如皮膚、肌肉）。染色體一對一對的：' + pairs + '，這叫 **2n**。', cells: '1 個', each: pairs + '（成對）', code: '2n ＝ ' + N2 };
+      if (stage === 1) return { svg: grid([full(true)]), cap: '準備分裂：每一條染色體先**複製**一份，兩份還連在一起（中間的小圓點）。連在一起時，還是算 ' + N2 + ' 條。', cells: '1 個', each: pairs + '（每條都複製好了）', code: '2n ＝ ' + N2 };
+      var cnt = Math.pow(2, stage - 1), conts = []; for (var i = 0; i < cnt; i++) conts.push(full(false));
+      return { svg: grid(conts), cap: stage === 2 ? '複製的兩份**分開**，平均分到 2 個細胞。每個新細胞都是 ' + pairs + '，和原來的細胞一模一樣。' : '細胞分裂 ' + (stage - 1) + ' 次：1 → ' + [2, 4, 8].slice(0, stage - 1).join(' → ') + '，共 ' + cnt + ' 個細胞，每個還是 ' + N2 + ' 條。分裂幾次都一樣：**細胞變多，每個細胞的染色體數目不變**。', cells: cnt + ' 個（分裂 ' + (stage - 1) + ' 次）', each: pairs + '（成對）', code: '2n ＝ ' + N2 };
+    }
+    if (proc === 'meiosis') {
+      if (stage === 0) return { svg: grid([full(false)]), cap: '這是' + nm + '會產生精子或卵的細胞，現在是 ' + pairs + '（2n）。', cells: '1 個', each: pairs + '（成對）', code: '2n ＝ ' + N2 };
+      if (stage === 1) return { svg: grid([full(true)]), cap: '染色體先**複製**一份（兩份還連在一起）。這一步和細胞分裂一樣。', cells: '1 個', each: pairs + '（每條都複製好了）', code: '2n ＝ ' + N2 };
+      if (stage === 2) return { svg: grid([half('A', true), half('B', true)]), cap: '第一次分裂：**每一對的兩條分開**，各到一個細胞。現在每個細胞只有每對中的一條：' + n + ' 條，不成對了。', cells: '2 個', each: n + ' 條（不成對，還連著複製的那份）', code: 'n ＝ ' + n };
+      return { svg: grid([half('A', false), half('A', false), half('B', false), half('B', false)]), cap: '第二次分裂：複製的兩份再分開。最後得到 **4 個**細胞（精子或卵），每個 ' + n + ' 條、**不成對**（n），是原來 ' + N2 + ' 條的一半。', cells: '4 個', each: n + ' 條（不成對）', code: 'n ＝ ' + n };
+    }
+    if (stage === 0) {
+      var s = '<path d="M60 100 C 46 86, 38 116, 24 100 S 8 86, 2 100" class="cm-tail"/>' + cell(56, 52, 104, 96, half('D', false), 'cm-sp', '精子') + '<text x="172" y="106" text-anchor="middle" class="cm-t" style="font-size:20px">＋</text>' + cell(186, 14, 150, 168, half('M', false), 'cm-egg');
+      s += '<text x="261" y="196" text-anchor="middle" class="cm-t">卵</text>';
+      return { svg: s, cap: '精子有 ' + n + ' 條（n），來自爸爸（藍）；卵有 ' + n + ' 條（n），來自媽媽（黃）。兩個都**不成對**。', cells: '精子 1 個＋卵 1 個', each: '各 ' + n + ' 條（不成對）', code: 'n ＝ ' + n };
+    }
+    return { svg: cell(70, 8, 200, 168, full(false), 'cm-egg', '受精卵'), cap: '**受精**：精子和卵結合成受精卵。' + n + ' 條＋' + n + ' 條＝' + N2 + ' 條，每一條藍色都和一樣長的黃色配成一對，又變回 ' + pairs + '（2n），和爸爸、媽媽的體細胞一樣多。', cells: '受精卵 1 個', each: pairs + '（成對）', code: '2n ＝ ' + N2 };
+  }
+  function draw() {
+    Array.prototype.forEach.call(el.querySelectorAll('[data-org]'), function (b) { var on = b.getAttribute('data-org') === org; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+    Array.prototype.forEach.call(el.querySelectorAll('[data-proc]'), function (b) { var on = b.getAttribute('data-proc') === proc; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+    var sc = scene(), last = PROC[proc].last;
+    R('svg').innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(sc.cap.replace(/\*\*/g, '')) + '">' + sc.svg + '</svg>';
+    R('cap').innerHTML = rich(sc.cap);
+    R('rt').innerHTML = [['細胞數', sc.cells], ['每個細胞的染色體', sc.each], ['寫法', sc.code]].map(function (r) { return '<div class="r"><span class="x">' + r[0] + '</span><span class="eq">' + esc(r[1]) + '</span></div>'; }).join('');
+    R('pos').textContent = PROC[proc].name + ' 第 ' + (stage + 1) + ' / ' + (last + 1) + ' 步';
+    el.querySelector('[data-st="-1"]').disabled = stage === 0;
+    el.querySelector('[data-st="1"]').disabled = stage >= last;
+  }
+  el.addEventListener('click', function (ev) {
+    var b = ev.target.closest('[data-org],[data-proc],[data-st]'); if (!b || b.disabled) return;
+    if (b.hasAttribute('data-org')) { org = b.getAttribute('data-org'); }
+    else if (b.hasAttribute('data-proc')) { proc = b.getAttribute('data-proc'); stage = 0; }
+    else { var d = +b.getAttribute('data-st'); stage = d === 0 ? 0 : Math.max(0, Math.min(PROC[proc].last, stage + d)); }
+    draw();
+  });
+  draw();
+}
+
+// ---------- routing & events ----------
+function route() {
+  var h = (location.hash || '').replace('#', '');
+  var idx = SECS.map(function (s) { return s.id; }).indexOf(h);
+  if (h === 'exam') renderExam();
+  else if (idx >= 0) renderSection(idx);
+  else { h = ''; renderHome(); }
+  renderChrome(h);
+}
+document.addEventListener('click', function (ev) {
+  var t = ev.target.closest('[data-act]'); if (!t) return;
+  var act = t.getAttribute('data-act'), id = t.getAttribute('data-id');
+  if (act === 'pick') onPick(id, +t.getAttribute('data-i'));
+  else if (act === 'hint') { var s = checkState(id); s.hint++; save(); refresh(id, 'chk'); }
+  else if (act === 'sol') { checkState(id).sol = true; save(); refresh(id, 'chk'); }
+  else if (act === 'nextv') { var s2 = checkState(id); s2.v++; s2.picks = []; s2.hint = 0; s2.sol = false; s2.tries++; save(); refresh(id, 'chk'); var el = document.getElementById('chk-' + id); if (el && el.scrollIntoView) el.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+  else if (act === 'step') { MEM.ex[id] = (MEM.ex[id] || 0) + 1; refresh(id, 'ex'); }
+  else if (act === 'allsteps') { var b = findBlock(id); MEM.ex[id] = b ? b.steps.length : 0; refresh(id, 'ex'); }
+  else if (act === 'resetsteps') { MEM.ex[id] = 0; refresh(id, 'ex'); }
+  else if (act === 'mis-ok') { var m = misState(id); m.ok = !m.ok; save(); refresh(id, 'mis'); updateSecHeader(); }
+  else if (act === 'mis-redo') { var m2 = misState(id); m2.redo = true; m2.picks = []; save(); refresh(id, 'mis'); }
+  else if (act === 'mis-show') { misState(id).redo = false; save(); refresh(id, 'mis'); }
+  else if (act === 'mis-pick') { var m3 = misState(id), bb = findBlock(id), pi = +t.getAttribute('data-i'); if (bb && m3.picks.indexOf(bb.answer) < 0 && m3.picks.indexOf(pi) < 0) { m3.picks.push(pi); save(); refresh(id, 'mis'); } }
+  else if (act === 'exam-start') startExam();
+  else if (act === 'exam-pick') { var E = ST.exam; if (E && E.ans[E.idx] == null) { E.ans[E.idx] = +t.getAttribute('data-i'); save(); renderExam(); } }
+  else if (act === 'exam-next') {
+    var E2 = ST.exam; E2.idx++;
+    if (E2.idx >= E2.order.length) {
+      E2.done = true; var ok = 0; E2.order.forEach(function (pi, i) { if (E2.ans[i] === examProblem(i).q.answer) ok++; });
+      if (ST.best == null || ok > ST.best.ok) ST.best = { ok: ok, n: E2.order.length };
+    }
+    save(); renderExam(); renderChrome('exam'); window.scrollTo(0, 0);
+  }
+});
+window.addEventListener('hashchange', function () { route(); window.scrollTo(0, 0); });
+route();
+})();
+</script>

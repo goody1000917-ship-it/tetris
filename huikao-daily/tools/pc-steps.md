@@ -31,6 +31,7 @@
    ```
 6. 確認：
    - https://daily.happygoody.net/learn/similar.html 打得開（相似形・比例線段教學）。
+   - https://daily.happygoody.net/learn/repro.html 打得開（生殖錯題講解）。
    - 首頁科目列有「自然」，設定頁有「自然新題上限」。
 
 ## 選擇性（先問使用者）
