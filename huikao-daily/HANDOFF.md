@@ -40,7 +40,9 @@ Worker 本身的測試：`cd test && npm install && node huikao-worker.test.mjs`
 ## 自然科（生物、理化）（2026-10-20）
 
 - 使用者要加生物和理化。題目在 `tools/science-questions.json`：229 題（生物 92、理化 137，每單元 6～8 題；id 生物 B01～B12、理化 P01～P18，subject `science`，area `生物`／`理化`）。由 `tools/science/science-workflow.js` 產生：每 3 個單元一位作者 → 盲解＋自然科老師審＋學生視角審解析 → 修改 → 再盲解，答案不一致或太簡單的丟掉，少於 5 題的單元補出。之後整份再總審（`qa-science` 流程：每組單元一位專挑答案錯的審查員、每科一位查事實與課綱、看每張圖），修改後再盲解；帶圖的原始資料在 `tools/science/science-source.json`（`build-science.mjs`、`apply-qa-science.mjs` 從它產生題庫）。
-- 正式網站的頁面要加「自然」科：`tools/live-patches/patch-science.mjs`（或 `science-subject.patch`），是照 2026-10-20 的正式網站頁面寫的，在本機用真的題庫測過（`tools/live-patches/test-science.mjs`）。repo 的 `index.html` 沒有加（它不是正式網站在用的版本）。
+- 正式網站的頁面要加「自然」科：`tools/live-patches/patch-science.mjs`（或 `science-subject.patch`），是照 2026-10-20 的正式網站頁面寫的（10-26 確認線上頁面和題庫與 10-20 完全相同），28 處修改，每處已存在就跳過、全部到位才寫入、寫入前檢查網頁程式能解析。repo 的 `index.html` 沒有加（它不是正式網站在用的版本）。
+- 新題先發給自然（`NEW_ORDER = ['science', 'math', 'social', 'english']`）：每天先排到期複習，剩的名額才一科一題輪流發新題，排最後的科目在複習多的日子一題都拿不到。使用者 10-26 反映「每日練沒有生物」：當時是還沒部署，但就算部署了，自然排最後也常常是 0 題。要改回或改成輪流，改 patch 裡的 `NEW_ORDER`。
+- **到 2026-10-26 為止，電腦那邊還沒部署**：線上沒有自然、沒有 `learn/` 兩頁、Worker 的卡片 id 修正也還沒上。使用者要在電腦的 Claude 貼：「到 tetris 專案執行 git fetch origin master，然後用 git show origin/master:huikao-daily/tools/pc-steps.md 讀出步驟，照著做。不要 git pull。」`pc-steps.md` 在模擬的電腦上（舊 checkout、CRLF、線上檔案當未 commit 的改動）照字面演練過：備份（`backup-live.mjs`，不是線上那份就拒絕）→ 加自然 → 加題 → 修卡片 id（`fix-card-key.mjs`）→ 檢查 AI 功能 → `npx wrangler@latest deploy --cwd huikao-worker`（從 tetris 根目錄，不 cd）→ `check-live.mjs`（唯讀檢查線上）→ 照抄給使用者的說明。
 
 ## 生殖錯題講解（2026-10-23）
 
@@ -54,9 +56,14 @@ Worker 本身的測試：`cd test && npm install && node huikao-worker.test.mjs`
 - Google 日曆（goody1000917@gmail.com 主日曆）有每天 19:30 的「寫會考每日練」活動（彈出通知，到 2027-05-14），這是第一次提醒。
 - 推播看不到作答紀錄。若使用者願意給同步碼，可以改成用 `POST https://daily.happygoody.net/api/ {code, op:'load'}` 讀當天有沒有寫（資料格式見 `huikao-worker/src/index.js` 註解）。
 
+## 同步：會考原題的紀錄存不進雲端（2026-10-26 發現）
+
+- Worker 的卡片 id 規則原本是 `^[A-Z]\d{2}-\d{2}$`，社會的會考原題 id 是 `K103-01`（三位數，719 題），線上 Worker 回 `bad_key`（10-26 用不帶資料的請求確認，沒有寫入任何東西）。頁面會跳「儲存失敗」，而 `remoteStore.load()` 用雲端的資料蓋掉本機，所以下次打開那題的紀錄就不見了。
+- repo 的 `huikao-worker/src/index.js` 已改成 `\d{2,3}`，測試在 `test/huikao-worker.test.mjs`。電腦上的 Worker 由 `pc-steps.md` 第 6 步的 `fix-card-key.mjs` 修，部署後 `check-live.mjs` 會確認。
+
 ## 排程規則（別改壞）
 
-一天預算 20 題：到期複習先出，剩的名額出新題（數學、社會各最多 4）。答對後 1、3、7、14 天各再出一次，第五次對就算學會，30 天後再確認、之後每 60 天。同一題一天只算一次。答錯回起點隔天再出。複習時不出同一題：第一次出原題，之後輪流出替身（`chooseVariant`，挑出現次數最少、且不是上次那題的），答題紀錄裡 `q` 記的是實際出的那題，卡片仍以原題 id 計。手動「我確定會了」要答對兩次後才出現。詳細見 `index.html` 的 `/*@logic-start*/` 區塊，單元測試在 `tools/test-logic.js`。
+一天預算 20 題：到期複習先出，剩的名額出新題（數學、社會各最多 4）。正式網站加了自然以後，新題名額按 `NEW_ORDER` 一科一題輪流發，自然先。答對後 1、3、7、14 天各再出一次，第五次對就算學會，30 天後再確認、之後每 60 天。同一題一天只算一次。答錯回起點隔天再出。複習時不出同一題：第一次出原題，之後輪流出替身（`chooseVariant`，挑出現次數最少、且不是上次那題的），答題紀錄裡 `q` 記的是實際出的那題，卡片仍以原題 id 計。手動「我確定會了」要答對兩次後才出現。詳細見 `index.html` 的 `/*@logic-start*/` 區塊，單元測試在 `tools/test-logic.js`。
 
 ## 其他待辦
 

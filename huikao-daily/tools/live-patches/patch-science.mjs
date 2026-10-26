@@ -151,7 +151,15 @@ const EDITS = [
 // An edit whose result is already in the page is skipped, so a page patched by an earlier version of this script
 // only gets the edits it is missing. Nothing is written unless every edit ends up in place.
 const has = (text, count) => s.split(text).length - 1 >= count;
-if (EDITS.every(([, to, count]) => has(to, count))) { console.log('already has 自然; nothing to do'); process.exit(0); }
+// A hand-changed EDITS entry must not leave the page with a script that does not parse.
+const parses = text => {
+  for (const [, code] of text.matchAll(/<script>([\s\S]*?)<\/script>/g)) {
+    try { new Function(code); } catch (e) { return e.message; }
+  }
+  return '';
+};
+const broken = text => { const err = parses(text); if (err) { console.error(`the patched page would have a script error (${err}); nothing was written. Check the EDITS entries that were changed.`); process.exit(1); } };
+if (EDITS.every(([, to, count]) => has(to, count))) { broken(s); console.log('already has 自然; nothing to do'); process.exit(0); }
 let applied = 0;
 for (const [i, [from, to, count]] of EDITS.entries()) {
   if (has(to, count)) continue;
@@ -162,5 +170,6 @@ for (const [i, [from, to, count]] of EDITS.entries()) {
 }
 const missing = EDITS.map(([, to, count], i) => has(to, count) ? 0 : i + 1).filter(Boolean);
 if (missing.length) { console.error(`edits ${missing.join(', ')} did not end up in the page; nothing was written`); process.exit(1); }
+broken(s);
 fs.writeFileSync(file, s);
 console.log(`added 自然: ${applied} of ${EDITS.length} edits applied to ${file}`);

@@ -129,7 +129,7 @@ src = src[:a] + '''  var nm = SECS.reduce(function (t, s) { return t + misOf(s).
 ''' + src[b:]
 rep("<small>你試試 ' + st.done + ' / ' + st.total + '</small>", "<small>考卷錯題 ' + st.mdone + ' / ' + st.mtotal + '・你試試 ' + st.done + ' / ' + st.total + '</small>")
 rep("'<p class=\"small muted\">學完以後，會考每日練會照遺忘曲線，隔天、三天、一週後再出這個單元的題目。<a href=\"' + DAILY + '\" target=\"_blank\" rel=\"noopener\">打開會考每日練</a></p>'",
-    "'<p class=\"small muted\">看完講解，到會考每日練做生殖的題目：<a href=\"' + DAILY + '?unit=B09\" target=\"_blank\" rel=\"noopener\">按這裡直接開始練生殖</a>。在每日練做過的題目，之後會照遺忘曲線，隔天、三天、一週後再出給你複習；只看講解不會排進去。</p>'")
+    "'<p class=\"small muted\">看完講解，打開你平常做的會考每日練，按「進度」→ 點開「自然 · 生物」→「生殖」→「練 5 題」。在每日練做過的題目，之後會照遺忘曲線，隔天、三天、一週後再出給你複習；只看講解不會排進去。如果你平常就是用這個瀏覽器開每日練，也可以<a href=\"' + DAILY + '?unit=B09\" target=\"_blank\" rel=\"noopener\">按這裡直接開始練生殖</a>。</p>'")
 rep("'<div class=\"small muted\">你試試：做對 <b id=\"secDone\">' + st.done + '</b> / ' + st.total + '</div></div>'",
     "'<div class=\"small muted\">考卷錯題看懂 <b id=\"secMis\">' + st.mdone + '</b> / ' + st.mtotal + '・你試試做對 <b id=\"secDone\">' + st.done + '</b> / ' + st.total + '</div></div>'")
 rep("  if (idx >= 0) { var el = document.getElementById('secDone'); if (el) el.textContent = secState(SECS[idx]).done; }",
