@@ -53,6 +53,9 @@ ok(j.status === 'ok' && Object.keys(j.cards).length === 0 && Object.keys(j.days)
 ok((await post({ op: 'card', code: A, key: 'M01-01', data: card })).status === 'ok', 'card write');
 ok((await post({ op: 'card', code: A, key: 'M01-01', data: { ...card, box: 2 } })).status === 'ok', 'card overwrite');
 ok((await post({ op: 'card', code: A, key: 'bad key', data: card })).status === 'bad_key', 'bad card key');
+ok((await post({ op: 'card', code: A, key: 'K103-01', data: card })).status === 'ok', '會考原題 card key with a 3-digit year (K103-01)');
+ok((await post({ op: 'card', code: A, key: 'B09-01', data: card })).status === 'ok', '自然 card key (B09-01)');
+ok((await post({ op: 'card', code: A, key: 'K1030-01', data: card })).status === 'bad_key', 'card key with 4 digits rejected');
 ok((await post({ op: 'card', code: A, key: 'M01-01', data: [1] })).status === 'bad_data', 'array data');
 ok((await post({ op: 'card', code: A, key: 'M01-01', data: 'x' })).status === 'bad_data', 'string data');
 ok((await post({ op: 'day', code: A, key: '2026-10-02', data: { ids: ['M01-01'], answered: {} } })).status === 'ok', 'day write');
@@ -62,7 +65,7 @@ ok((await post({ op: 'card', code: A, key: 'M01-02', data: { s: 'x'.repeat(17000
 
 j = await post({ op: 'load', code: A });
 ok(j.cards['M01-01'].box === 2 && j.days['2026-10-02'].ids[0] === 'M01-01' && j.settings.budget === 20, 'load returns the latest writes');
-ok(Object.keys(j.cards).length === 1, 'rejected writes stored nothing');
+ok(Object.keys(j.cards).sort().join() === 'B09-01,K103-01,M01-01', 'rejected writes stored nothing: ' + Object.keys(j.cards).sort().join());
 
 // ---------- isolation between codes ----------
 j = await post({ op: 'load', code: B });

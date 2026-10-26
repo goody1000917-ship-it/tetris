@@ -52,6 +52,16 @@ await page.evaluate(() => { startSubject('science'); });
 await page.waitForTimeout(200);
 const subj = await page.evaluate(() => S.session && S.session.kind === 'subject' && S.session.ids.every(id => /^[BP]\d\d-/.test(id)) && S.session.ids.length);
 ok(subj > 0, 'science subject practice uses science questions only (' + subj + ')');
+// new questions are dealt 自然 first: with 19 reviews due and a budget of 20, the one free slot is 自然
+const deal = await page.evaluate(() => {
+  var cards = {}, n = 0, sub = function (id) { return S.byId[id].subject; };
+  S.bank.forEach(function (q) { if (q.subject !== 'science' && n < 19) { cards[q.id] = Object.assign(newCard(), { seen: 1, box: 1, due: S.today }); n++; } });
+  var one = pickDaily(S.bank, cards, Object.assign({}, S.settings, { budget: 20 }), S.today, {});
+  var three = pickDaily(S.bank, cards, Object.assign({}, S.settings, { budget: 22 }), S.today, {});
+  return { reviews: one.reviews.length, one: one.fresh.map(sub), three: three.fresh.map(sub).sort() };
+});
+ok(deal.reviews === 19 && deal.one.join() === 'science', 'one free slot goes to 自然: ' + JSON.stringify(deal));
+ok(deal.three.join() === 'math,science,social', 'three free slots go to 自然, 數學, 社會: ' + JSON.stringify(deal.three));
 // extra questions split over four subjects
 const split = await page.evaluate(() => { var day = S.days[S.today]; var before = day.ids.length; addMore(8); return day.ids.length - before; });
 ok(split > 0, 'add-more still adds questions (' + split + ')');

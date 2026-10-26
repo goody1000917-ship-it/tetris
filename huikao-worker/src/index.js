@@ -25,7 +25,7 @@ const json = (obj, status = 200) => new Response(JSON.stringify(obj), {
 });
 
 const CODE_RE = /^[0-9a-f]{32}$/;
-const KEY_RE = { card: /^[A-Z]\d{2}-\d{2}$/, day: /^\d{4}-\d{2}-\d{2}$/, settings: /^settings$/ };
+const KEY_RE = { card: /^[A-Z]\d{2,3}-\d{2}$/, day: /^\d{4}-\d{2}-\d{2}$/, settings: /^settings$/ };
 const MAX_BODY = 32_000;        // bytes of request text
 const MAX_DOC = 16_000;         // bytes of one serialized document
 const MAX_DOCS = 5_000;         // documents per student (471 questions + one row per day is well under this)

@@ -129,13 +129,14 @@ src = src[:a] + '''  var nm = SECS.reduce(function (t, s) { return t + misOf(s).
 ''' + src[b:]
 rep("<small>你試試 ' + st.done + ' / ' + st.total + '</small>", "<small>考卷錯題 ' + st.mdone + ' / ' + st.mtotal + '・你試試 ' + st.done + ' / ' + st.total + '</small>")
 rep("'<p class=\"small muted\">學完以後，會考每日練會照遺忘曲線，隔天、三天、一週後再出這個單元的題目。<a href=\"' + DAILY + '\" target=\"_blank\" rel=\"noopener\">打開會考每日練</a></p>'",
-    "'<p class=\"small muted\">學完以後，會考每日練的「自然」科會照遺忘曲線，隔天、三天、一週後再出這些觀念的題目給你。<a href=\"' + DAILY + '\" target=\"_blank\" rel=\"noopener\">打開會考每日練</a></p>'")
+    "'<p class=\"small muted\">看完講解，到會考每日練做生殖的題目：<a href=\"' + DAILY + '?unit=B09\" target=\"_blank\" rel=\"noopener\">按這裡直接開始練生殖</a>。在每日練做過的題目，之後會照遺忘曲線，隔天、三天、一週後再出給你複習；只看講解不會排進去。</p>'")
 rep("'<div class=\"small muted\">你試試：做對 <b id=\"secDone\">' + st.done + '</b> / ' + st.total + '</div></div>'",
     "'<div class=\"small muted\">考卷錯題看懂 <b id=\"secMis\">' + st.mdone + '</b> / ' + st.mtotal + '・你試試做對 <b id=\"secDone\">' + st.done + '</b> / ' + st.total + '</div></div>'")
 rep("  if (idx >= 0) { var el = document.getElementById('secDone'); if (el) el.textContent = secState(SECS[idx]).done; }",
     "  if (idx >= 0) { var st = secState(SECS[idx]), el = document.getElementById('secDone'), em = document.getElementById('secMis'); if (el) el.textContent = st.done; if (em) em.textContent = st.mdone; }")
 rep("'<p>' + (ok === E.order.length ? '全對！這個單元你已經會了，接下來交給每日練幫你記住。'", "'<p>' + (ok === E.order.length ? '全對！這個單元你真的會了，接下來交給每日練幫你記住。'")
 rep("換數字再挑戰一次", "換一批題目再考一次")
+rep("'\" target=\"_blank\" rel=\"noopener\">去會考每日練</a>", "'?unit=B09\" target=\"_blank\" rel=\"noopener\">去每日練做生殖的題目</a>")
 rep(" 題綜合題，每題只能選一次，", " 題新題目，考的都是你這次錯的觀念。每題只能選一次，")
 rep("會考沒有提示", "考試沒有提示") #，這裡也先不給。想不出來可以先猜一個，看完解法再回去複習。'")
 # blocks

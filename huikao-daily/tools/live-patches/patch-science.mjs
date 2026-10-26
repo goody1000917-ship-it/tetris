@@ -1,11 +1,11 @@
 // Adds the 自然 subject (生物、理化) to the live 會考每日練 page. Same edits as science-subject.patch, done by
 // text replacement so it also works when the page changed elsewhere. Stops at the first edit whose original text
-// is missing and names it, without writing anything.
+// is missing and names it, without writing anything. If that happens, change that EDITS entry to match this page
+// (not the page itself) and run it again.
 // usage (from the repo root): node huikao-daily/tools/live-patches/patch-science.mjs huikao-daily/index.html
 import fs from 'fs';
 const file = process.argv[2] || 'huikao-daily/index.html';
 let s = fs.readFileSync(file, 'utf8');
-if (s.includes("science: '自然'")) { console.log('already has 自然; nothing to do'); process.exit(0); }
 const EDITS = [
  [
   "--warn-soft:#FBF0D6;",
@@ -35,6 +35,11 @@ const EDITS = [
  [
   "var SUBJECTS = ['math', 'social', 'english'];",
   "var SUBJECTS = ['math', 'social', 'english', 'science'];",
+  1
+ ],
+ [
+  "var SUBJECTS = ['math', 'social', 'english', 'science'];",
+  "var SUBJECTS = ['math', 'social', 'english', 'science'];\n// New questions are dealt one per subject in this order, after the due reviews. 自然 goes first: it was added\n// last and starts with no cards, and on review-heavy days the subject dealt last gets no new questions at all.\nvar NEW_ORDER = ['science', 'math', 'social', 'english'];",
   1
  ],
  [
@@ -136,12 +141,26 @@ const EDITS = [
   "englishNew: v('englishNew', 0, 10), hardBias",
   "englishNew: v('englishNew', 0, 10), scienceNew: v('scienceNew', 0, 10), hardBias",
   1
+ ],
+ [
+  "    SUBJECTS.forEach(function (sub) { if (slots > 0 && want[sub] < cap[sub]) { want[sub]++; slots--; dealt = true; } });",
+  "    NEW_ORDER.forEach(function (sub) { if (slots > 0 && want[sub] < cap[sub]) { want[sub]++; slots--; dealt = true; } });",
+  1
  ]
 ];
+// An edit whose result is already in the page is skipped, so a page patched by an earlier version of this script
+// only gets the edits it is missing. Nothing is written unless every edit ends up in place.
+const has = (text, count) => s.split(text).length - 1 >= count;
+if (EDITS.every(([, to, count]) => has(to, count))) { console.log('already has 自然; nothing to do'); process.exit(0); }
+let applied = 0;
 for (const [i, [from, to, count]] of EDITS.entries()) {
+  if (has(to, count)) continue;
   const n = s.split(from).length - 1;
   if (n !== count) { console.error(`edit ${i + 1} of ${EDITS.length}: expected ${count} copies of this text, found ${n}:\n${from.slice(0, 200)}`); process.exit(1); }
   s = s.split(from).join(to);
+  applied++;
 }
+const missing = EDITS.map(([, to, count], i) => has(to, count) ? 0 : i + 1).filter(Boolean);
+if (missing.length) { console.error(`edits ${missing.join(', ')} did not end up in the page; nothing was written`); process.exit(1); }
 fs.writeFileSync(file, s);
-console.log(`added 自然: ${EDITS.length} edits applied to ${file}`);
+console.log(`added 自然: ${applied} of ${EDITS.length} edits applied to ${file}`);
