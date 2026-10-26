@@ -129,7 +129,7 @@ src = src[:a] + '''  var nm = SECS.reduce(function (t, s) { return t + misOf(s).
 ''' + src[b:]
 rep("<small>你試試 ' + st.done + ' / ' + st.total + '</small>", "<small>考卷錯題 ' + st.mdone + ' / ' + st.mtotal + '・你試試 ' + st.done + ' / ' + st.total + '</small>")
 rep("'<p class=\"small muted\">學完以後，會考每日練會照遺忘曲線，隔天、三天、一週後再出這個單元的題目。<a href=\"' + DAILY + '\" target=\"_blank\" rel=\"noopener\">打開會考每日練</a></p>'",
-    "'<p class=\"small muted\">學完以後，到會考每日練的「設定」把自然打開，它會照遺忘曲線，隔天、三天、一週後再出生物題給你。<a href=\"' + DAILY + '\" target=\"_blank\" rel=\"noopener\">打開會考每日練</a></p>'")
+    "'<p class=\"small muted\">學完以後，會考每日練的「自然」科會照遺忘曲線，隔天、三天、一週後再出這些觀念的題目給你。<a href=\"' + DAILY + '\" target=\"_blank\" rel=\"noopener\">打開會考每日練</a></p>'")
 rep("'<div class=\"small muted\">你試試：做對 <b id=\"secDone\">' + st.done + '</b> / ' + st.total + '</div></div>'",
     "'<div class=\"small muted\">考卷錯題看懂 <b id=\"secMis\">' + st.mdone + '</b> / ' + st.mtotal + '・你試試做對 <b id=\"secDone\">' + st.done + '</b> / ' + st.total + '</div></div>'")
 rep("  if (idx >= 0) { var el = document.getElementById('secDone'); if (el) el.textContent = secState(SECS[idx]).done; }",

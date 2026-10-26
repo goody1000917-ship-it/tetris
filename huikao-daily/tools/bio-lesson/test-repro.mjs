@@ -1,4 +1,4 @@
-// Smoke-tests the 生殖 lesson page at phone width. usage: node test-repro.mjs <page.html> <shots dir>
+// Smoke-tests the 生殖 lesson page at phone width. usage: node test-repro.mjs <page.html path or http(s) URL> <shots dir>
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { chromium } = require('/opt/node22/lib/node_modules/playwright');
@@ -10,7 +10,7 @@ for (const scheme of ['light', 'dark']) {
   const page = await ctx.newPage();
   const errs = []; page.on('pageerror', e => errs.push(e.message)); page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errs.push(m.text()); }); page.on('requestfailed', r => { if (!/fonts\.(googleapis|gstatic)/.test(r.url())) errs.push('request failed ' + r.url()); });
   await page.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
-  await page.goto('file://' + file);
+  await page.goto(/^https?:/.test(file) ? file : 'file://' + file);
   const overflow = async where => { const o = await page.evaluate(() => document.scrollingElement.scrollWidth - window.innerWidth); o > 1 ? bad(`${scheme} ${where}: horizontal overflow ${o}px`) : ok(`${scheme} ${where}: no overflow`); };
   await overflow('home');
   if (scheme === 'light') await page.screenshot({ path: `${shots}/home.png` });

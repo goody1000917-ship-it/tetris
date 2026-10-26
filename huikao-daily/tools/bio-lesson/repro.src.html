@@ -294,7 +294,7 @@ function renderHome() {
     html += '<li><a href="#' + s.id + '"><span class="n">' + shortLabel(i) + '</span><span class="t">' + esc(s.title) + '<small>考卷錯題 ' + st.mdone + ' / ' + st.mtotal + '・你試試 ' + st.done + ' / ' + st.total + '</small></span><span class="st ' + (st.complete ? 'ok' : st.started ? 'go' : '') + '">' + (st.complete ? '✓ 完成' : st.started ? '進行中' : '') + '</span></a></li>';
   });
   html += '<li><a href="#exam"><span class="n">戰</span><span class="t">再考一次<small>' + EXAM.length + ' 題綜合題' + (ST.best != null ? '，最佳 ' + ST.best.ok + ' / ' + ST.best.n : '') + '</small></span><span class="st ' + (examDone() ? 'ok' : '') + '">' + (examDone() ? '✓ 做過' : '') + '</span></a></li></ol>';
-  html += '<p class="small muted">學完以後，到會考每日練的「設定」把自然打開，它會照遺忘曲線，隔天、三天、一週後再出生物題給你。<a href="' + DAILY + '" target="_blank" rel="noopener">打開會考每日練</a></p>';
+  html += '<p class="small muted">學完以後，會考每日練的「自然」科會照遺忘曲線，隔天、三天、一週後再出這些觀念的題目給你。<a href="' + DAILY + '" target="_blank" rel="noopener">打開會考每日練</a></p>';
   view.innerHTML = html;
 }
 
