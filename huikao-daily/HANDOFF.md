@@ -53,7 +53,7 @@ Worker 本身的測試：`cd test && npm install && node huikao-worker.test.mjs`
 ## 每日提醒
 
 - 帳號裡有一個 Routine「會考每日練提醒」（trig_011smHeRX1jL4wWzKvMfBbwD），2026-10-20 起每天台灣時間 20:52 推播：不讀紀錄，只寫離會考天數、今天記得寫、依星期幾的小建議，連到 daily.happygoody.net。
-- Google 日曆（goody1000917@gmail.com 主日曆）有每天 19:30 的「寫會考每日練」活動（彈出通知，到 2027-05-14），這是第一次提醒。
+- 不要用 Google 日曆提醒：使用者 2026-10-28 說不要，當天已把每天 19:30 的「寫會考每日練」活動整個刪掉，Routine 的提示也改成「這是唯一的提醒」。
 - 推播看不到作答紀錄。若使用者願意給同步碼，可以改成用 `POST https://daily.happygoody.net/api/ {code, op:'load'}` 讀當天有沒有寫（資料格式見 `huikao-worker/src/index.js` 註解）。
 
 ## 同步：會考原題的紀錄存不進雲端（2026-10-26 發現）
