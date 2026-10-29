@@ -16,6 +16,7 @@
 - 這個 repo 的 master 沒有上面那些，但有替身題（`variant_of`，935 題）、分享連結與「名字＋密碼」登入。正式網站沒有這些。
 - 所以**不要在電腦上 `git pull origin master` 再部署**：會和電腦上沒推的改動衝突，或把英文、AI 功能蓋掉。
 - 要把新東西放上正式網站，只拿新檔案，例如：`git fetch origin master` 然後 `git checkout origin/master -- huikao-daily/learn`，再部署。
+- **不要在電腦上那個 tetris 資料夾用 `claude --teleport`（或 claude.ai/code 的 Open in > Terminal）接雲端的對話。** teleport 要求乾淨的 git 狀態（會請你 stash 沒 commit 的改動）再切到雲端的分支：只在這台電腦上的線上版 `index.html`、`questions.json`、`huikao-worker/` 會被收進 stash、換成 GitHub 的舊版，接著部署就會弄壞網站。要在電腦上做事，就在那個資料夾開新的本機對話（Claude 桌面版：Code → 輸入框下面的環境選 Local → 資料夾選 Open folder… → tetris），貼 `pc-steps.md` 開頭那句話。
 - 之後要合併兩邊：先請連電腦的對話把它的版本 commit 並推到 GitHub 的新分支（不要把 `.dev.vars` 或任何金鑰、通行碼加進去），再由任一個對話把兩邊合併成一個版本。
 
 ## 怎麼更新網頁
