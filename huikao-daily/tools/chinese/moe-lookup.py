@@ -1,17 +1,24 @@
 # Looks words and characters up in 教育部《國語辭典簡編本》 (the dictionary 教育部 recommends for 中小學), falling back
 # to 《重編國語辭典修訂本》, and prints each entry's 注音 and 釋義 as one JSON line per query.
 # usage: python3 -I moe-lookup.py 揶揄 晾 行 [--revised] [--max 8]
-# A single character with several readings (破音字) lists every entry. "found": false means neither dictionary has it.
-import html, json, re, subprocess, sys, tempfile, os, urllib.parse
+# A single character with several readings (破音字) lists every entry. "found": false means neither dictionary has it;
+# "found": null means the site could not be reached after retries (unknown, look it up again).
+import html, json, re, subprocess, sys, tempfile, time, os, urllib.parse
 
 SITES = {'簡編本': 'https://dict.concised.moe.edu.tw/', '修訂本': 'https://dict.revised.moe.edu.tw/'}
 JAR = os.path.join(tempfile.gettempdir(), 'moe-lookup-cookies.txt')
 
 def fetch(url):
-    r = subprocess.run(['curl', '-sS', '-L', '-m', '40', '-c', JAR, '-b', JAR, '-w', '\n%{url_effective}', url], capture_output=True)
-    body = r.stdout.decode('utf-8', 'replace')
-    i = body.rfind('\n')
-    return body[:i], body[i + 1:]
+    # a dropped or failed request is retried, so it is never mistaken for "this dictionary has no such word"
+    for attempt in range(4):
+        r = subprocess.run(['curl', '-sS', '-L', '-m', '40', '-c', JAR, '-b', JAR, '-w', '\n%{http_code} %{url_effective}', url], capture_output=True)
+        body = r.stdout.decode('utf-8', 'replace')
+        i = body.rfind('\n')
+        code, _, final = body[i + 1:].partition(' ')
+        if r.returncode == 0 and code == '200' and len(body) > 500:
+            return body[:i], final
+        time.sleep(1 + 2 * attempt)
+    raise RuntimeError(f'dictionary request failed after retries: {url}')
 
 def entry(page):
     m = re.search(r'<meta name="Description" content="([^"]*)"', page)
@@ -22,7 +29,7 @@ def entry(page):
     zy = re.search(r'注音:([^,]*)', d)
     defs = re.search(r'釋義:(.*)$', d, re.S)
     return {'word': word.group(1).strip() if word else '', 'zhuyin': (zy.group(1).strip() if zy else '').replace('　', ' '),
-            'defs': re.sub(r'\s+', ' ', defs.group(1)).strip()[:400] if defs else ''}
+            'defs': re.sub(r'\s+', ' ', defs.group(1)).strip()[:1500] if defs else ''}
 
 def lookup(word, site, limit):
     base = SITES[site]
@@ -54,7 +61,11 @@ def main():
     for w in words:
         res = {'query': w, 'found': False}
         for site in sites:
-            es = lookup(w, site, limit)
+            try:
+                es = lookup(w, site, limit)
+            except RuntimeError as e:
+                res = {'query': w, 'found': None, 'error': str(e)}   # unknown, not "missing": check again later
+                break
             if es:
                 res = {'query': w, 'found': True, 'dict': site, 'entries': es}
                 break
