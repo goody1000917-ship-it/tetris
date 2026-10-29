@@ -64,20 +64,24 @@ def entry(q, unit, qid, source=None):
     if source: e['source'] = source
     return e
 
-# practice questions, numbered per unit in batch order
-counter = {u: 0 for u in UNITS}
+# practice questions: batch W01-b2's question i gets id W01-(10+i+1), so an id never moves to another question when a
+# question is dropped or a batch is added later (the site keys each student's record by id); ids may have gaps
+BLOCK = 10
 for path in sorted(glob.glob(os.path.join(qgen_dir, '*.fixed.json'))):
     batch = os.path.basename(path)[:-len('.fixed.json')]
     data = json.load(open(path, encoding='utf-8'))
     unit = data['unit']
+    m = re.fullmatch(r'(W\d{2})-b(\d+)', batch)
+    if not m or m.group(1) != unit: problems.append(f'{batch}: batch name must be <unit>-b<n> with the file\'s unit'); continue
+    if len(data['questions']) > BLOCK: problems.append(f'{batch}: more than {BLOCK} questions'); continue
+    base = (int(m.group(2)) - 1) * BLOCK
     drops_path = os.path.join(qgen_dir, batch + '.drops.json')
     drop = set(json.load(open(drops_path, encoding='utf-8')).get('drop', [])) if os.path.exists(drops_path) else None
     if drop is None: problems.append(f'{batch}: no .drops.json (the recheck result is missing)'); continue
     for i, q in enumerate(data['questions']):
         if i in drop: continue
         if not check(q, f'{batch}#{i}'): continue
-        counter[unit] += 1
-        bank.append(entry(q, unit, f'{unit}-{counter[unit]:02d}'))
+        bank.append(entry(q, unit, f'{unit}-{base + i + 1:02d}'))
         origin[bank[-1]['id']] = {'file': os.path.basename(path), 'index': i}
 
 # past 會考 questions; the 111 sample paper reprinted some earlier questions word for word, so a question whose stem
