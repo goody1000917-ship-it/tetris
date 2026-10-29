@@ -63,19 +63,26 @@ for path in sorted(glob.glob(os.path.join(qgen_dir, '*.fixed.json'))):
         counter[unit] += 1
         bank.append(entry(q, unit, f'{unit}-{counter[unit]:02d}'))
 
-# past 會考 questions
-seen_ids = set()
+# past 會考 questions; the 111 sample paper reprinted some earlier questions word for word, so a question whose stem
+# and options match one already taken is skipped (main exams sort before the sample paper and the re-sit)
+seen_ids, seen_text = set(), set()
+norm = lambda t: re.sub(r'\s+', '', str(t))
+order = lambda q: (str(q['year']) in EXAM_LABEL, str(q['year']), int(q['qno']))
+exam_qs = []
 for path in sorted(glob.glob(os.path.join(exam_dir, '*.final.json'))):
-    for q in json.load(open(path, encoding='utf-8'))['questions']:
-        if not q.get('keep'): continue
-        year, qno = str(q['year']), int(q['qno'])
-        prefix, label = EXAM_LABEL.get(year, ('Y' + year, year + '年會考'))
-        qid = f'{prefix}-{qno:02d}'
-        if qid in seen_ids: problems.append(f'{qid}: duplicate'); continue
-        if q.get('unit') not in UNITS: problems.append(f'{qid}: unknown unit {q.get("unit")}'); continue
-        if not check(q, qid): continue
-        seen_ids.add(qid)
-        bank.append(entry(q, q['unit'], qid, f'{label} 第{qno}題'))
+    exam_qs += json.load(open(path, encoding='utf-8'))['questions']
+for q in sorted(exam_qs, key=order):
+    if not q.get('keep'): continue
+    key = (norm(q.get('stem')), tuple(norm(o) for o in q.get('options') or []))
+    if key in seen_text: print(f'skipped {q["year"]}-{q["qno"]}: same question as an earlier paper'); continue
+    year, qno = str(q['year']), int(q['qno'])
+    prefix, label = EXAM_LABEL.get(year, ('Y' + year, year + '年會考'))
+    qid = f'{prefix}-{qno:02d}'
+    if qid in seen_ids: problems.append(f'{qid}: duplicate'); continue
+    if q.get('unit') not in UNITS: problems.append(f'{qid}: unknown unit {q.get("unit")}'); continue
+    if not check(q, qid): continue
+    seen_ids.add(qid); seen_text.add(key)
+    bank.append(entry(q, q['unit'], qid, f'{label} 第{qno}題'))
 
 ids = [q['id'] for q in bank]
 assert len(ids) == len(set(ids)), 'duplicate ids'
