@@ -28,7 +28,7 @@ for it in ranked['items']:
     v = status.get(it['n']) if status else {}
     if v is None or v.get('status') == 'drop': continue
     merged = dict(it); merged.update({k: v[k] for k in v if k not in ('n',)})
-    if merged.get('avoid') and merged.get('unit') in ('W01', 'W02'): continue
+    if merged.get('avoid'): continue   # a 字音 reading the 審訂表 versions disagree on, or a disputed 六書 case
     items.append(merged)
 avoid = ranked.get('avoid_chars', [])
 exams = []
@@ -42,7 +42,8 @@ for unit, n in sorted(want.items()):
     area, name, types = UNITS[unit]
     pool = sorted([it for it in items if it.get('unit') == unit], key=lambda it: (it.get('priority', 3), it['n']))
     if len(pool) < n: report.append(f'{unit}: only {len(pool)} verified items for {n} questions; using {len(pool)}'); n = len(pool)
-    examples = [q for q in exams if unit in cat_unit.get(q.get('category'), [])][:4]
+    # the newest real questions show today's wording (字音 has asked 讀音正確 since 108)
+    examples = sorted([q for q in exams if unit in cat_unit.get(q.get('category'), [])], key=lambda q: -int(str(q.get('year'))[:3]))[:4]
     batches = [pool[i:i + size] for i in range(0, n, size)]
     for b, main in enumerate(batches, 1):
         main_ids = {it['n'] for it in main}

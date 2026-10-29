@@ -1,6 +1,7 @@
 # Builds tools/chinese-questions.json (live 會考每日練 format, subject "chinese") from the checked question batches and
 # the past 會考 questions, and refuses anything the live page would show wrongly.
 # usage: python3 -I build-bank.py <qgen dir> <exam dir> <out.json>
+#        python3 -I build-bank.py --check <batch.json>...   (checks question batches by the same rules, for the writers)
 #   <qgen dir>/<batch>.fixed.json  {"unit","questions":[{stem,options,answer,difficulty,topic,explanation,targets}]}
 #   <qgen dir>/<batch>.drops.json  {"drop":[question indexes to leave out],"why":{...}}   (from the recheck)
 #   <exam dir>/<batch>.final.json  {"questions":[{year,qno,unit,stem,options,answer,difficulty,topic,explanation,keep,reason}]}
@@ -15,11 +16,10 @@ UNITS = {
 }
 # the live page turns 2+ spaces, tabs, full-width spaces and ｜ into table cells, and keeps the bank's option order
 # only when the explanation names options by position; these questions are shuffled, so neither may appear
-TABLE_RE = re.compile(r' {2,}|\t|　|[|｜]')
+TABLE_RE = re.compile(r'\s{2,}|\t|　|[|｜]')   # the page's RT_SEP: /\s{2,}|\t|　+|\s*[|｜]\s*/
 POS_RE = re.compile(r'選項[一二三四]|第[一二三四]個選項|[①②③④]|[(（][A-DＡ-Ｄ][)）]|[A-D]選項')
 EXAM_LABEL = {'105R': ('R105', '105年會考（新店考場重考）'), '111S': ('S111', '111年會考參考題本')}
 
-qgen_dir, exam_dir, out = sys.argv[1:4]
 problems, bank = [], []
 
 def check(q, where):
@@ -39,6 +39,21 @@ def check(q, where):
     if POS_RE.search(str(q.get('explanation', ''))) or POS_RE.search(str(q.get('stem', ''))): errs.append('names an option by position (the page shuffles options)')
     for e in errs: problems.append(f'{where}: {e}')
     return not errs
+
+if sys.argv[1:2] == ['--check']:
+    for path in sys.argv[2:]:
+        data = json.load(open(path, encoding='utf-8'))
+        if data.get('unit') not in UNITS: problems.append(f'{path}: unit must be one of {sorted(UNITS)}')
+        for i, q in enumerate(data.get('questions', [])):
+            check(q, f'{path}#{i}')
+            if not str(q.get('topic') or '').strip(): problems.append(f'{path}#{i}: topic missing')
+            ts = q.get('targets')
+            if not isinstance(ts, list) or not ts or any(not isinstance(t, dict) or not all(str(t.get(k) or '').strip() for k in ('word', 'focus', 'claim', 'truth')) for t in ts):
+                problems.append(f'{path}#{i}: targets must list every tested word with word, focus, claim and truth')
+    print('\n'.join(problems) if problems else 'all questions pass the page rules')
+    sys.exit(1 if problems else 0)
+
+qgen_dir, exam_dir, out = sys.argv[1:4]
 
 def entry(q, unit, qid, source=None):
     area, unit_name = UNITS[unit]
