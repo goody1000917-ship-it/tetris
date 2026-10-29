@@ -4,10 +4,13 @@
 # "found": false means the dictionary has no 正字 for it; "found": null means the site could not be reached after
 # retries (unknown, look it up again). 說文 does not name the 六書 category outright: 「象形」「指事」 are often stated,
 # 「从A从B」「从A、B」 or 「从A依B」 reads as 會意, and 「从A，B聲」 as 形聲.
-import html, json, os, re, subprocess, sys, tempfile, time, urllib.parse
+import atexit, html, json, os, re, subprocess, sys, tempfile, time, urllib.parse
 
 BASE = 'https://dict.variants.moe.edu.tw/'
-JAR = os.path.join(tempfile.gettempdir(), 'shuowen-lookup-cookies.txt')
+# a fresh cookie jar for every run: an old session left in a shared jar made the 異體字字典 search return no
+# results at all, so every character looked missing
+_fd, JAR = tempfile.mkstemp(prefix='moe-cookies-'); os.close(_fd)
+atexit.register(lambda: os.path.exists(JAR) and os.remove(JAR))
 
 def fetch(url, ref=None):
     for attempt in range(4):

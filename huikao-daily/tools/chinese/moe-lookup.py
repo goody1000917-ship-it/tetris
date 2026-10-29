@@ -5,14 +5,17 @@
 # gives them. "found": false means neither dictionary has it; "found": null means the site could not be reached after
 # retries (unknown, look it up again). Answers are kept in a shared cache file, so many checkers looking up the same
 # words send each request to the (public) site once.
-import html, json, re, subprocess, sys, tempfile, time, os, urllib.parse
+import atexit, html, json, re, subprocess, sys, tempfile, time, os, urllib.parse
 try:
     import fcntl
 except ImportError:   # Windows: no locking, one checker at a time
     fcntl = None
 
 SITES = {'簡編本': 'https://dict.concised.moe.edu.tw/', '修訂本': 'https://dict.revised.moe.edu.tw/'}
-JAR = os.path.join(tempfile.gettempdir(), 'moe-lookup-cookies.txt')
+# a fresh cookie jar for every run: an old session left in a shared jar made the 異體字字典 search return no
+# results at all, so every character looked missing
+_fd, JAR = tempfile.mkstemp(prefix='moe-cookies-'); os.close(_fd)
+atexit.register(lambda: os.path.exists(JAR) and os.remove(JAR))
 CACHE = os.environ.get('MOE_LOOKUP_CACHE') or os.path.join(tempfile.gettempdir(), 'moe-lookup-cache.jsonl')
 CACHE_VERSION = 'v2'
 
