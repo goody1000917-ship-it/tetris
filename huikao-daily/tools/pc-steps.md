@@ -40,7 +40,7 @@
    node huikao-daily/tools/live-patches/fix-card-key.mjs
    ```
    它只把 `huikao-worker/src/index.js` 裡卡片 id 的規則從 `\d{2}` 放寬成 `\d{2,3}`，其他不動。如果它說找不到那條規則（這台電腦的寫法不同），就自己找到檢查卡片 id 的那條規則，只改成也接受三位數：`K103-01`、`M17-01`、`B09-01`、`P05-01` 都要接受，`K1030-01` 不接受。
-7. 看一下 AI 功能會不會被新科目弄壞：在 `huikao-worker/src/` 裡找處理 `op: 'twin'`（AI 雙胞胎題）和 `op: 'ask'`（問 AI）的程式。如果它有照科目分（例如 math／social／english 的對照表、各科不同的提示詞、只接受這三科的檢查），就照 english 那一項的寫法加上 science：科目名「自然」，題目的 `area` 是「生物」或「理化」，有些題目有 `figure_svg` 圖。沒有照科目分就不用改。有改的話，最後跟使用者說改了哪裡。
+7. 看一下 AI 功能會不會被新科目弄壞：在 `huikao-worker/src/` 裡找處理 `op: 'twin'`（AI 雙胞胎題）和 `op: 'ask'`（問 AI）的程式。如果它有照科目分（例如 math／social／english 的對照表、各科不同的提示詞、只接受這三科的檢查），就照 english 那一項的寫法加上 science 和 chinese：science 的科目名「自然」，題目的 `area` 是「生物」或「理化」，有些題目有 `figure_svg` 圖；chinese 的科目名「國文」，`area` 是「字音」「字形」或「字義」（頁面不會替國文題要 AI 雙胞胎題，chinese 只要「問 AI」能用就好）。沒有照科目分就不用改。有改的話，最後跟使用者說改了哪裡。
 8. 部署。先確認第 4 步兩行最後印的是 `added …` 或 `already has …`，第 6 步沒有報錯；不是的話不要部署。
    ```
    npx wrangler@latest deploy --cwd huikao-worker

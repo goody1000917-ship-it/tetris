@@ -1,6 +1,6 @@
 # Builds tools/chinese-questions.json (live 會考每日練 format, subject "chinese") from the checked question batches and
 # the past 會考 questions, and refuses anything the live page would show wrongly.
-# usage: python3 -I build-bank.py <qgen dir> <exam dir> <out.json>
+# usage: python3 -I build-bank.py <qgen dir> <exam dir> <out.json> [<origin map.json>]
 #        python3 -I build-bank.py --check <batch.json>...   (checks question batches by the same rules, for the writers)
 #   <qgen dir>/<batch>.fixed.json  {"unit","questions":[{stem,options,answer,difficulty,topic,explanation,targets}]}
 #   <qgen dir>/<batch>.drops.json  {"drop":[question indexes to leave out],"why":{...}}   (from the recheck)
@@ -54,6 +54,7 @@ if sys.argv[1:2] == ['--check']:
     sys.exit(1 if problems else 0)
 
 qgen_dir, exam_dir, out = sys.argv[1:4]
+origin = {}   # id -> where the question came from, for applying review results
 
 def entry(q, unit, qid, source=None):
     area, unit_name = UNITS[unit]
@@ -77,6 +78,7 @@ for path in sorted(glob.glob(os.path.join(qgen_dir, '*.fixed.json'))):
         if not check(q, f'{batch}#{i}'): continue
         counter[unit] += 1
         bank.append(entry(q, unit, f'{unit}-{counter[unit]:02d}'))
+        origin[bank[-1]['id']] = {'file': os.path.basename(path), 'index': i}
 
 # past 會考 questions; the 111 sample paper reprinted some earlier questions word for word, so a question whose stem
 # and options match one already taken is skipped (main exams sort before the sample paper and the re-sit)
@@ -85,7 +87,7 @@ norm = lambda t: re.sub(r'\s+', '', str(t))
 order = lambda q: (str(q['year']) in EXAM_LABEL, str(q['year']), int(q['qno']))
 exam_qs = []
 for path in sorted(glob.glob(os.path.join(exam_dir, '*.final.json'))):
-    exam_qs += json.load(open(path, encoding='utf-8'))['questions']
+    exam_qs += [dict(q, _file=os.path.basename(path)) for q in json.load(open(path, encoding='utf-8'))['questions']]
 for q in sorted(exam_qs, key=order):
     if not q.get('keep'): continue
     key = (norm(q.get('stem')), tuple(norm(o) for o in q.get('options') or []))
@@ -98,11 +100,13 @@ for q in sorted(exam_qs, key=order):
     if not check(q, qid): continue
     seen_ids.add(qid); seen_text.add(key)
     bank.append(entry(q, q['unit'], qid, f'{label} 第{qno}題'))
+    origin[qid] = {'file': q['_file'], 'year': q['year'], 'qno': q['qno']}
 
 ids = [q['id'] for q in bank]
 assert len(ids) == len(set(ids)), 'duplicate ids'
 assert all(re.fullmatch(r'[A-Z]\d{2,3}-\d{2}', i) for i in ids), 'an id the sync Worker would refuse'
 json.dump(bank, open(out, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+if len(sys.argv) > 4: json.dump(origin, open(sys.argv[4], 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
 by = {}
 for q in bank: by[q['unit']] = by.get(q['unit'], 0) + 1
 print(f'{len(bank)} questions ({sum(1 for q in bank if "source" in q)} 會考原題): ' + ', '.join(f'{u} {n}' for u, n in sorted(by.items())))
