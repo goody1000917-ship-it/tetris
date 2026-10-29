@@ -15,7 +15,7 @@ SEQ = rf'{ZY1}(?:[ 　]{ZY1})*'
 KV = re.compile(rf'([一-鿿「」]{{1,16}})[：:]\s*({SEQ})')
 READ = re.compile(rf'([一-鿿「」]{{1,16}})(?<!不)讀\s*({SEQ})')
 CUT = re.compile(r'.*[的在和與或是當時跟及]')   # 「只有逾和渝都讀ㄩˊ」 → 渝都 → 渝
-TAIL = '都也才就還又只亦皆均則要'
+TAIL = '都也才就還又只亦皆均則要卻仍但竟'
 # words whose reading changed between the versions (e.g. 擁抱 ㄩㄥ → ㄩㄥˇ); a version difference in another word of
 # the same character (胡同) says nothing about this one (不同)
 changed = {}
