@@ -61,7 +61,8 @@ const deal = await page.evaluate(() => {
   return { reviews: one.reviews.length, one: one.fresh.map(sub), three: three.fresh.map(sub).sort() };
 });
 ok(deal.reviews === 19 && deal.one.join() === 'science', 'one free slot goes to 自然: ' + JSON.stringify(deal));
-ok(deal.three.join() === 'math,science,social', 'three free slots go to 自然, 數學, 社會: ' + JSON.stringify(deal.three));
+const firstThree = await page.evaluate(() => NEW_ORDER.slice(0, 3).sort().join());   // 自然, 數學, 社會 — or 自然, 國文, 數學 once 國文 is added
+ok(deal.three.join() === firstThree, 'three free slots follow NEW_ORDER (' + firstThree + '): ' + JSON.stringify(deal.three));
 // extra questions split over four subjects
 const split = await page.evaluate(() => { var day = S.days[S.today]; var before = day.ids.length; addMore(8); return day.ids.length - before; });
 ok(split > 0, 'add-more still adds questions (' + split + ')');
@@ -75,7 +76,8 @@ await page.evaluate(() => { S.tab = 'settings'; render(); });
 await page.waitForTimeout(200);
 ok(await page.locator('#scienceNew').count() === 1, 'settings has 自然新題上限');
 const hint = await page.locator('#newHint').innerText();
-ok(/自然 3/.test(hint) && /= 14/.test(hint), 'hint counts 自然: ' + hint);
+const total = await page.evaluate(() => Object.keys(NEW_KEY).reduce(function (t, k) { return t + DEFAULT_SETTINGS[NEW_KEY[k]]; }, 0));
+ok(/自然 3/.test(hint) && hint.indexOf('= ' + total) >= 0, 'hint counts 自然 (total ' + total + '): ' + hint);
 await page.fill('#scienceNew', '5'); await page.dispatchEvent('#scienceNew', 'input');
 ok(/自然 5/.test(await page.locator('#newHint').innerText()), 'hint updates live');
 await page.locator('[data-act=save-settings]').click(); await page.waitForTimeout(150);
