@@ -1,4 +1,4 @@
-# Splits the verified research items into question-writing batches.
+# Splits the ranked (and, when present, dictionary-verified) research items into question-writing batches.
 # usage: python3 -I build-specs.py <research dir> <out specs dir> W01=30 W02=35 W03=40 W04=30 [W05=6] [--size 10]
 # Each batch gets `size` main items (one question each, strongest exam evidence first), the rest of its unit as a pool
 # for wrong options, a few real 會考 questions of the same unit as style examples, and the characters to avoid.
@@ -24,8 +24,9 @@ for f in glob.glob(os.path.join(rdir, 'verified-*.json')):
         status[it.get('n')] = it
 items = []
 for it in ranked['items']:
-    v = status.get(it['n'])
-    if not v or v.get('status') == 'drop': continue
+    # with verified-*.json files, only items they kept; without them, every ranked item (the writers verify each one)
+    v = status.get(it['n']) if status else {}
+    if v is None or v.get('status') == 'drop': continue
     merged = dict(it); merged.update({k: v[k] for k in v if k not in ('n',)})
     if merged.get('avoid') and merged.get('unit') in ('W01', 'W02'): continue
     items.append(merged)
