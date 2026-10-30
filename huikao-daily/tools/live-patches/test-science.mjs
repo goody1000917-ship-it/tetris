@@ -28,11 +28,13 @@ let sawChip = false;
 for (let i = 0; i < 25 && !sawChip; i++) {
   const html = await page.locator('#view').innerHTML();
   if (/chip science/.test(html)) { sawChip = /生物|理化/.test(html); break; }
+  // dispatched clicks: Playwright scrolls a button only just into view, where the fixed tab bar can cover it (a
+  // student scrolls it clear: the page keeps 80px free below the content), and the page handles clicks on document
   const opt = page.locator('#view .opt').first();
   if (!(await opt.count())) break;
-  await opt.click(); await page.waitForTimeout(80);
+  await opt.dispatchEvent('click'); await page.waitForTimeout(80);
   const next = page.locator('#view [data-act=next]');
-  if (await next.count()) { await next.first().click(); await page.waitForTimeout(80); }
+  if (await next.count()) { await next.first().dispatchEvent('click'); await page.waitForTimeout(80); }
 }
 ok(sawChip, 'a science question shows its 生物/理化 chip');
 // every science stem written with 「｜」 rows renders as a table, and no other stem turns into one

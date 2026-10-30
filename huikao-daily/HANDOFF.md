@@ -44,12 +44,40 @@ Worker 本身的測試：`cd test && npm install && node huikao-worker.test.mjs`
 - 正式網站的頁面要加「自然」科：`tools/live-patches/patch-science.mjs`（或 `science-subject.patch`），是照 2026-10-20 的正式網站頁面寫的（10-26 確認線上頁面和題庫與 10-20 完全相同），28 處修改，每處已存在就跳過、全部到位才寫入、寫入前檢查網頁程式能解析。repo 的 `index.html` 沒有加（它不是正式網站在用的版本）。
 - 新題先發給自然（`NEW_ORDER = ['science', 'math', 'social', 'english']`）：每天先排到期複習，剩的名額才一科一題輪流發新題，排最後的科目在複習多的日子一題都拿不到。使用者 10-26 反映「每日練沒有生物」：當時是還沒部署，但就算部署了，自然排最後也常常是 0 題。要改回或改成輪流，改 patch 裡的 `NEW_ORDER`。
 - **到 2026-10-26 為止，電腦那邊還沒部署**：線上沒有自然、沒有 `learn/` 兩頁、Worker 的卡片 id 修正也還沒上。使用者要在電腦的 Claude 貼：「到 tetris 專案執行 git fetch origin master，然後用 git show origin/master:huikao-daily/tools/pc-steps.md 讀出步驟，照著做。不要 git pull。」`pc-steps.md` 在模擬的電腦上（舊 checkout、CRLF、線上檔案當未 commit 的改動）照字面演練過：備份（`backup-live.mjs`，不是線上那份就拒絕）→ 加自然 → 加題 → 修卡片 id（`fix-card-key.mjs`）→ 檢查 AI 功能 → `npx wrangler@latest deploy --cwd huikao-worker`（從 tetris 根目錄，不 cd）→ `check-live.mjs`（唯讀檢查線上）→ 照抄給使用者的說明。
+- 2026-10-30 起，同一套 `pc-steps.md` 也會加國文（`patch-chinese.mjs`、`chinese-questions.json`），使用者貼的是同一句話。如果電腦那邊之前已經照舊版步驟加過自然，再跑一次也沒關係：已經加過的會跳過，只會補上國文。這兩種情況 10-30 都在模擬的電腦上照字面演練過：check-live 全部通過，自然、國文、兩頁教學的瀏覽器測試也都通過。電腦上若沒有開好資料夾，就貼：「在這台電腦上找到 tetris 資料夾（裡面有 huikao-daily 和 huikao-worker，是部署 daily.happygoody.net 的那份；有好幾份就選 huikao-daily/index.html 裡有 op: 'twin' 的那個），之後每個指令都先 cd 到那個資料夾再執行：先 git fetch origin master，再用 git show origin/master:huikao-daily/tools/pc-steps.md 讀出步驟，照著做。不要 git pull。」
 
 ## 生殖錯題講解（2026-10-23）
 
 - 使用者傳了生物第 7 回複習考（第 6 單元「生殖」，54 分）的照片，說「我不會我好爛」。做了一頁錯題講解：`huikao-daily/learn/repro.html`（claude.ai Artifact：https://claude.ai/artifact/UuyxM3cJHuvNhrF2tWdAid ）。錯的 16 題分成 4 節（染色體的對／條與三種過程、有性還是無性、開花植物、動物的受精與發育）；每題照考卷原樣顯示，紅色是他選的、綠色是正確答案，附「怎麼想」、四個選項各錯在哪、一句話記住，可以「遮住答案，再做一次」。另有染色體小工具（果蠅／豌豆／人 × 細胞分裂／減數分裂／受精）、12 組新練習題和 10 題型的「再考一次」。進度存在瀏覽器。
 - 題目、選項、正確答案、他選的答案是從照片抄的（`tools/bio-lesson/bio-workflow.js` 的 `MISTAKES`），盲解者 16 題都和老師的答案一致。第 2 題他寫了 (A)、(B) 兩個。第 32 題的「丁」看不出是卵白還是卵殼，講解寫成「卵白和卵殼那一帶」。
 - 流程、原始檔、修正紀錄（`patches.json`）與測試在 `huikao-daily/tools/bio-lesson/`。上正式網站跟著 `tools/pc-steps.md` 的 `huikao-daily/learn` 一起，不用另外的步驟。
+
+## 國文形音義（2026-10-29）
+
+- 使用者 10-28 說「我還要國文的形音義，去查最常考的」。研究了 102～115 年會考（含 105 新店重考、111 參考題本）共 71 題形音義：每年約 1 題字音、1 題錯別字、1 題造字、1～2 題字義，最難的是文言字義（通過率 0.33～0.45）。再加上網路上的常考整理，以及教育部《國語一字多音審訂表》88／101 版的差異，排出 335 個最常考的字詞。研究資料在雲端暫存區，沒有進 repo。
+- 題庫 `tools/chinese-questions.json` 共 201 題，subject `chinese`，area 分字音 61、字形 86、字義 54。
+  - 練習題 142 題：W01 一字多音 16、W02 容易讀錯的字 30、W03 同音字形近字 50、W04 一字多義 37、W05 造字原則與部首 9。
+  - 會考原題 59 題：id `Y108-07` 是 108 年第 7 題，`R105-06` 是 105 新店重考。有圖的、答案有疑義的、111 參考題本重出的都不收。頁面會顯示「108年會考 第7題」。
+- id 不會換題：`W01-b2` 那批的第 i 題（從 0 數）是 `W01-(10+i+1)`，丟掉的題目留空號。每日練的紀錄照 id 存，所以加題或刪題都不會讓紀錄對到別題。每單元最多到 99（Worker 的卡片 id 只收兩位數）；要加題，就加新的一批（例如 `W01-b3`）。
+- 規則：
+  - 字音以 88 年版審訂表為本，同時檢核 101 年初稿，兩版不同的不考（心測中心的做法）。詳解裡教的注音也照這個規則。
+  - 讀音、字形、字義以教育部《國語辭典簡編本》為準，查不到才用《重編國語辭典修訂本》。
+  - 六書看《異體字字典》的說文；有爭議的字不考（小、甘、弦、出、晶…）。
+- 工具都在 `tools/chinese/`：
+  - `moe-lookup.py`：查辭典，有快取，會給部首。
+  - `shuowen-lookup.py`：查說文。
+  - `check-shending.py`：字音考點對審訂表。
+  - `check-expl-readings.py`：詳解裡教的每個注音對審訂表。
+  - `build-specs.py`：把排名分成出題批次。
+  - `build-bank.py`：組題庫；加 `--check` 是檢查網頁規則。
+- 流程：
+  - 練習題：每 10 題一位作者出題 → 老師查證、蓋住答案的解題者、國文弱的學生讀詳解 → 修改 → 第二位解題者再解 → 把關者重查每個說法，有疑問就丟。寫了 150 題，留 142 題。
+  - 會考原題：轉成文字、寫詳解 → 對照試卷和辭典審 → 修改 → 整份再盲解一次、查事實，有問題的由三位獨立確認後才改。改了 9 題的詳解。
+- 網頁：`tools/live-patches/patch-chinese.mjs` 共 28 處，要先加過自然才能加國文；測試是 `test-chinese.mjs`。
+  - 國文不出 AI 雙胞胎題。
+  - 新題順序是自然、國文、數學、社會、英文；國文每天最多 3 題新題，設定頁可以改。
+  - 進度頁最上面加了「教學」區，連到相似形和生殖錯題講解。
+- 上正式網站跟自然一起，照 `tools/pc-steps.md` 做。
 
 ## 每日提醒
 
